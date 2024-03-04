@@ -21,6 +21,8 @@ library
       Paths_cswk_hurtle
   hs-source-dirs:
       src
+      containers
+      mtl
   default-extensions:
       LambdaCase
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-orphans -Wno-missing-export-lists

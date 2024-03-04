@@ -32,6 +32,9 @@ default-extensions: LambdaCase
 library:
   source-dirs:
     - src
+    - containers
+    - mtl
+    
     # - src/hatch
 
 executable: 
