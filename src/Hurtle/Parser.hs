@@ -9,41 +9,22 @@ import Data.Char
 
 -- | Helpers
 
-satisfyIgnoreCase :: (String -> Bool) -> Parser String
-satisfyIgnoreCase f = takeWhileP (Just "string") (\s -> f (map toLower s))
+parseToNewLine :: Parser ()
+parseToNewLine = do 
+    hspace
+    _ <- satisfy (==',') <|> newline
+    pure ()
 
 -- | Variable Parsers
 
-parseVariableByName :: Parser Variable
-parseVariableByName = do
-    _ <- satisfy (==':')
-    name <- takeWhileP (Just "character") (\c -> c /= ' ' && c /= '\n' && c /= ',')
-    pure (Variable $ Left $ map toLower name)
+parseVariable :: Parser Variable
+parseVariable = undefined
 
-parseVariableByValue :: Parser Variable
-parseVariableByValue = do
-    num <- some digitChar
-    _ <- char '.'
-    decimal <- some digitChar
-    _ <- char ' '
-    pure $ Variable $ Right (read (num ++ "." ++ decimal) :: Float)
-  <|> do
-    num <- some digitChar
-    _ <- char ' '
-    return $ Variable $ Right (read num :: Float)
+-- | HogoCode Parsers
 
-parseByNameByValue :: Parser Variable
-parseByNameByValue = parseVariableByName <|> parseVariableByValue
 
-parseSum :: Parser Variable
-parseSum = do
-    _ <- satisfyIgnoreCase (=="sum")
-    _ <- skipMany space
-    var1 <- parseByNameByValue
-    _ <- skipMany space
-    var2 <- parseByNameByValue
-    _ <- takeWhileP (Just "whitespace") (\c -> c /= ' ' && c /= '\n' && c /= ',')
-    pure $ Sum var1 var2
+
+-- | HogoProgram Parsers
 
 
 parseHogo :: Parser HogoProgram

@@ -36,7 +36,7 @@ data HogoCode
   | SetColor Variable
   | ClearScreen
   -- | Control Flow
-  | For HogoProgram
+  | For [HogoCode] -- enter instansiates into ns, exit gets rid
   | Function String
   deriving (Show,Read,Eq)
 

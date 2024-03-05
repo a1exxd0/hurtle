@@ -1,4 +1,11 @@
 -- This is the main entry point for your Hurtle viewer.
+import Hurtle.Types
+import Hurtle.FileReader
+--import Hurtle.Parser
 
 main :: IO ()
-main = error "Not implemented!\n(find me in app/Main.hs)\n"
+main = do
+    putStrLn "Enter file name: "
+    fn <- getLine
+    res <- readFileToLower fn
+    putStrLn res
