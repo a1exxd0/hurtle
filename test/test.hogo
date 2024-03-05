@@ -1,3 +1,5 @@
-forward 50
-back 20
+make "a 5
+make "b :a
+forward :a
 
+back 4

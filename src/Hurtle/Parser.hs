@@ -1,15 +1,12 @@
 module Hurtle.Parser where
 
 import Hurtle.Types
-
--- You'll probably want to refer to https://hackage.haskell.org/package/megaparsec for documentation of the Megaparsec library.
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Data.Char
-import Data.Map.Strict
+import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 import Data.Maybe
-import Debug.Trace
 
 -- | Helpers
 
@@ -18,24 +15,18 @@ liftHogo p = HogoParser $ lift p
 
 parseToEOF :: Parser ()
 parseToEOF = do
+    hspace
     _ <- try eof
     pure ()
 
 parseToNL :: Parser ()
 parseToNL = do 
-    _ <- space
-    _ <- try eof >> satisfy (\c -> c ==',' || c == '\n')
+    hspace
+    _ <- satisfy (\c -> c ==',' || c == '\n')
     pure ()
 
-parseToNewLine :: HogoParser ()
-parseToNewLine = liftHogo (parseToEOF <|> parseToNL)
-
--- | Comment skipping
-skipToNewLine :: HogoParser ()
-skipToNewLine = do
-    _ <- liftHogo (takeWhileP Nothing $ \c -> c /= '\n')
-    _ <- liftHogo anySingle
-    pure ()
+parseToNewLine :: Parser ()
+parseToNewLine = parseToEOF <|> parseToNL
 
 float :: Parser Float
 float = do
@@ -44,7 +35,7 @@ float = do
     let value = case decimalPart of
             Nothing -> read integerPart
             Just dPart -> read (integerPart ++ "." ++ dPart)
-    _ <- space
+    space
     pure value
 
 -- | Update code
@@ -55,24 +46,43 @@ updateCode c = do
     let updated = curr {code = code curr ++ pure c}
     put updated
 
+-- | Update variable
+
+updateVariable :: String -> Variable -> HogoParser ()
+updateVariable name (Variable kv) = do
+    curr <- get
+    let updated = curr {varTable = Map.insert name kv (varTable curr)}
+    put updated
+
 -- | Variable Declaration Parsers
 
 parseVariableDeclaration :: HogoParser ()
-parseVariableDeclaration = undefined
+parseVariableDeclaration = do
+    _ <- liftHogo $ chunk "make"
+    liftHogo hspace
+    _ <- liftHogo $ satisfy (=='"')
+    varName <- liftHogo $ manyTill anySingle ( void (
+                satisfy (\c -> c == ' ' || c == ',' || c == '\n')
+            ))
+    liftHogo hspace
+    val <- parseVariable
+    updateVariable varName val
+
 
 -- | Variable Parsers
 
 parseVariableByValue :: Parser Variable
-parseVariableByValue = do Variable . Right <$> float
+parseVariableByValue = do 
+    space >> Variable . Value <$> float
 
 parseVariableByName :: Parser Variable
 parseVariableByName = do
+    space
     _ <- satisfy (==':')
     varName <- manyTill anySingle ( void (
                 satisfy (\c -> c == ' ' || c == ',' || c == '\n')
             ))
-    _ <- hspace
-    pure (Variable $ Left varName)
+    pure (Variable $ Key varName)
 
 parseVariable :: HogoParser Variable
 parseVariable = liftHogo (parseVariableByName <|> parseVariableByValue)
@@ -92,33 +102,31 @@ parseFunctionCall = undefined
 parseHome :: HogoParser ()
 parseHome = do
     _ <- liftHogo $ chunk "home"
-    _ <- parseToNewLine
+    _ <- liftHogo parseToNewLine
     updateCode Home
 
 parseSingleArg :: HogoParser ()
 parseSingleArg = do
-    op <- liftHogo ( parseForward <|> parseBackward <|> parseLeft <|>
+    op <- liftHogo ( 
+        parseForward <|> parseBackward <|> parseLeft <|>
         parseRight <|> parseSetWidth <|> parseSetColor )
     _ <- liftHogo space
     var <- parseVariable
-    _ <- parseToNewLine
+    _ <- liftHogo parseToNewLine
     updateCode $ op var
     where
-        parseForward = chunk "forward" >> pure Forward
-        parseBackward = chunk "back" >> pure Backward
-        parseLeft = chunk "left" >> pure GoLeft
-        parseRight = chunk "right" >> pure GoRight
-        parseSetWidth = chunk "setwidth" >> pure SetWidth
-        parseSetColor = chunk "setcolor" >> pure SetColor
+        parseForward    = chunk "forward"   >> pure Forward
+        parseBackward   = chunk "back"      >> pure Backward
+        parseLeft       = chunk "left"      >> pure GoLeft
+        parseRight      = chunk "right"     >> pure GoRight
+        parseSetWidth   = chunk "setwidth"  >> pure SetWidth
+        parseSetColor   = chunk "setcolor"  >> pure SetColor
 
 parseHogoCode :: HogoParser () 
-parseHogoCode = do 
-    parseHome <|> parseSingleArg <|> parseToNewLine
-    continueParsing where
-        continueParsing = do
-            end <- liftHogo $ optional eof
-            unless (isJust end) $ do
-                parseHogoCode
+parseHogoCode = do
+    parseHome <|> parseSingleArg <|> parseVariableDeclaration <|> liftHogo parseToNewLine
+    end <- liftHogo atEnd
+    unless end parseHogoCode
 
 -- | HogoProgram Parsers
 

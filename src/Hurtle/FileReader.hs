@@ -13,5 +13,5 @@ toLowerExceptNewline w
 
 readFileToLower :: String -> IO String
 readFileToLower s = do
-    contents <- BS.readFile s
+    contents <- BS.readFile "test/test.hogo"
     pure $ map toLowerExceptNewline $ BS.unpack contents
