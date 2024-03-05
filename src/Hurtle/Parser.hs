@@ -8,6 +8,8 @@ import Text.Megaparsec.Char
 import Data.Char
 import Data.Map.Strict
 import Control.Monad.State.Strict
+import Data.Maybe
+import Debug.Trace
 
 -- | Helpers
 
@@ -22,7 +24,7 @@ parseToEOF = do
 parseToNL :: Parser ()
 parseToNL = do 
     _ <- space
-    _ <- satisfy (\c -> c ==',' || c == '\n')
+    _ <- try eof >> satisfy (\c -> c ==',' || c == '\n')
     pure ()
 
 parseToNewLine :: HogoParser ()
@@ -111,8 +113,12 @@ parseSingleArg = do
 
 parseHogoCode :: HogoParser () 
 parseHogoCode = do 
-    parseHome <|> parseToNewLine
-    parseHogoCode
+    parseHome <|> parseSingleArg <|> parseToNewLine
+    continueParsing where
+        continueParsing = do
+            end <- liftHogo $ optional eof
+            unless (isJust end) $ do
+                parseHogoCode
 
 -- | HogoProgram Parsers
 
