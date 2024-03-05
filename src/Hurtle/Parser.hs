@@ -35,7 +35,6 @@ float = do
     let value = case decimalPart of
             Nothing -> read integerPart
             Just dPart -> read (integerPart ++ "." ++ dPart)
-    space
     pure value
 
 -- | Update code
@@ -58,6 +57,7 @@ updateVariable name (Variable kv) = do
 
 parseVariableDeclaration :: HogoParser ()
 parseVariableDeclaration = do
+    liftHogo hspace
     _ <- liftHogo $ chunk "make"
     liftHogo hspace
     _ <- liftHogo $ satisfy (=='"')
@@ -73,11 +73,11 @@ parseVariableDeclaration = do
 
 parseVariableByValue :: Parser Variable
 parseVariableByValue = do 
-    space >> Variable . Value <$> float
+    hspace >> Variable . Value <$> float
 
 parseVariableByName :: Parser Variable
 parseVariableByName = do
-    space
+    hspace
     _ <- satisfy (==':')
     varName <- manyTill anySingle ( void (
                 satisfy (\c -> c == ' ' || c == ',' || c == '\n')
@@ -107,10 +107,11 @@ parseHome = do
 
 parseSingleArg :: HogoParser ()
 parseSingleArg = do
+    liftHogo hspace
     op <- liftHogo ( 
         parseForward <|> parseBackward <|> parseLeft <|>
         parseRight <|> parseSetWidth <|> parseSetColor )
-    _ <- liftHogo space
+    _ <- liftHogo hspace
     var <- parseVariable
     _ <- liftHogo parseToNewLine
     updateCode $ op var

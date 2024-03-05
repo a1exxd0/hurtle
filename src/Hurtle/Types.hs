@@ -18,7 +18,15 @@ data HogoProgram = HogoProgram {
   procTable :: Map.Map String ([String], HogoProgram),
   code     :: [HogoCode]
   } 
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show HogoProgram where
+  show hogo = 
+    "\n" ++ "Variable Table: " ++ "\n" 
+    ++ concatMap (\e -> "   " ++ show e ++ "\n") (varTable hogo) ++ "\n" ++
+    "Procedure Table: " ++ "\n"
+    ++ concatMap (\e -> "   " ++ show e ++ "\n") (procTable hogo) ++ "\n" ++
+    "Code Components: " ++ "\n" ++ concatMap (\e -> "   " ++ show e ++ "\n") (code hogo)
 
 data Variable 
   = Variable (KeyValue String Float)

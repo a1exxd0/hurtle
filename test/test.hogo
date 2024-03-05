@@ -1,5 +1,6 @@
 make "a 5
-make "b :a
-forward :a
+make "b :a, right 900.2
 
-back 4
+back 4, forward 100
+
+left 10
