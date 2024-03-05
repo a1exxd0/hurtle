@@ -22,8 +22,6 @@ library
       Paths_cswk_hurtle
   hs-source-dirs:
       src
-      containers
-      mtl
   default-extensions:
       LambdaCase
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-orphans -Wno-missing-export-lists
@@ -32,6 +30,7 @@ library
     , bytestring
     , containers
     , megaparsec
+    , mtl
     , parser-combinators
   default-language: GHC2021
 
@@ -50,6 +49,7 @@ executable cswk-hurtle
     , containers
     , cswk-hurtle
     , megaparsec
+    , mtl
     , parser-combinators
   default-language: GHC2021
 
@@ -74,6 +74,7 @@ test-suite cswk-hurtle-test
     , directory
     , filepath
     , megaparsec
+    , mtl
     , parser-combinators
     , random
     , tasty

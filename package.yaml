@@ -11,6 +11,7 @@ dependencies:
 - megaparsec
 - parser-combinators
 - bytestring
+- mtl
 # - gloss
 # - gloss-juicy
 
@@ -33,8 +34,6 @@ default-extensions: LambdaCase
 library:
   source-dirs:
     - src
-    - containers
-    - mtl
     
     # - src/hatch
 

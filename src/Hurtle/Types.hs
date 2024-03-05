@@ -1,16 +1,20 @@
 module Hurtle.Types where
 
 import Text.Megaparsec
+import qualified Data.Map.Strict as Map
+import Control.Monad.State.Strict
+import Control.Monad.Except
 import Data.Void
-import Data.Map
+import Control.Applicative
+
 
 --------------------------------------------------------------------------------
 -- Type Definitions
 
 -- | A Hogo program is a list of HogoCode instructions
 data HogoProgram = HogoProgram {
-  varTable :: Map String (Either Variable Float),
-  procTable :: Map String ([String], HogoProgram),
+  varTable :: Map.Map String (Either Variable Float),
+  procTable :: Map.Map String ([String], HogoProgram),
   code     :: [HogoCode]
   } 
   deriving (Show, Read, Eq)
@@ -29,6 +33,8 @@ data HogoCode
   | GoLeft Variable
   | GoRight Variable
   | Home
+  -- | Variable Usage
+  | MakeVariable String Variable
   -- | Pen Commands
   | PenUp
   | PenDown
@@ -43,3 +49,9 @@ data HogoCode
 
 -- | This is an alias for the Megaparsec parser type; the "Void" tells it that we don't have any custom error type, and the "string" tells it that we're parsing strings.
 type Parser = Parsec Void String
+
+-- | MTL usage to bring state with program
+
+newtype HogoParser a = HogoParser {
+    runHogoParser :: StateT HogoProgram Parser a
+} deriving (Functor, Applicative, Monad, MonadState HogoProgram, Alternative)
