@@ -13,8 +13,8 @@ main = do
     fileName <- getLine
     input <- readFileToLower fileName
     let initialState = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
-    case runParser (runStateT (runHogoParser parseHogo) initialState) "" input of
+    case runParser (runStateT (runHogoParser parseHogo) initialState) "" (input ++ "\n") of
         Left err -> putStrLn $ "Parse error: " ++ errorBundlePretty err
         Right (result, finalState) -> do
-            putStrLn $ "Parsed result: " ++ show result
+            -- putStrLn $ "Parsed result: " ++ show result
             putStrLn $ "Final state: " ++ show finalState

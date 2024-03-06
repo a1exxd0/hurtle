@@ -14,7 +14,7 @@ data KeyValue k v = Key k | Value v deriving (Show, Eq)
 
 -- | A Hogo program is a list of HogoCode instructions
 data HogoProgram = HogoProgram {
-  varTable :: Map.Map String (KeyValue String Float),
+  varTable :: Map.Map String Variable,
   procTable :: Map.Map String ([String], HogoProgram),
   code     :: [HogoCode]
   } 
@@ -23,9 +23,9 @@ data HogoProgram = HogoProgram {
 instance Show HogoProgram where
   show hogo = 
     "\n" ++ "Variable Table: " ++ "\n" 
-    ++ concatMap (\e -> "   " ++ show e ++ "\n") (varTable hogo) ++ "\n" ++
+    ++ concatMap (\e -> "   " ++ show e ++ "\n") (Map.toList $ varTable hogo) ++ "\n" ++
     "Procedure Table: " ++ "\n"
-    ++ concatMap (\e -> "   " ++ show e ++ "\n") (procTable hogo) ++ "\n" ++
+    ++ concatMap (\e -> "   " ++ show e ++ "\n") (Map.toList $ procTable hogo) ++ "\n" ++
     "Code Components: " ++ "\n" ++ concatMap (\e -> "   " ++ show e ++ "\n") (code hogo)
 
 data Variable 
@@ -45,14 +45,15 @@ data HogoCode
   -- | Variable Usage
   | MakeVariable String Variable
   -- | Pen Commands
-  | PenUp
-  | PenDown
   | SetWidth Variable
   | SetColor Variable
+  | PenUp
+  | PenDown
   | ClearScreen
   -- | Control Flow
-  | For [HogoCode] -- enter instansiates into ns, exit gets rid
-  | Function String
+  | For String Variable Variable Variable [HogoCode] -- enter instansiates into ns, exit gets rid
+  | Function String [Variable]
+  | Scope HogoProgram
   deriving (Show,Eq)
 
 

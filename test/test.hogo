@@ -1,6 +1,12 @@
+;hi
 make "a 5
-make "b :a, right 900.2
-
+make "b :a   , right 900.2
+;what
+;hellooo world
 back 4, forward 100
+make "hello 5
+left :a
+penup
 
-left 10
+to proc :var1 [ penup
+ ] 
