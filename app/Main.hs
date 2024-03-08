@@ -18,3 +18,4 @@ main = do
         Right (result, finalState) -> do
             -- putStrLn $ "Parsed result: " ++ show result
             putStrLn $ "Final state: " ++ show finalState
+

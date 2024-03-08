@@ -1,12 +1,10 @@
-;hi
+forward 50
 make "a 5
-make "b :a   , right 900.2
-;what
-;hellooo world
-back 4, forward 100
-make "hello 5
-left :a
-penup
+make "b :a
 
-to proc :var1 [ penup
- ] 
+;nothing valuable
+back :a
+
+to proc :inp1 :inp2 [forward :inp1 ] end
+
+to proc2 :inp1 [penup] end

@@ -9,8 +9,13 @@ import Control.Applicative
 
 
 --------------------------------------------------------------------------------
--- Type Definitions
-data KeyValue k v = Key k | Value v deriving (Show, Eq)
+-- | Type Definitions
+data KeyValue k v 
+  -- | Used to represent a variable name
+  = Key k 
+  -- | Used to represent a numeric type
+  | Value v 
+  deriving (Show, Eq)
 
 -- | A Hogo program is a list of HogoCode instructions
 data HogoProgram = HogoProgram {
@@ -20,12 +25,14 @@ data HogoProgram = HogoProgram {
   } 
   deriving (Eq)
 
+
 instance Show HogoProgram where
+  show :: HogoProgram -> String
   show hogo = 
     "\n" ++ "Variable Table: " ++ "\n" 
     ++ concatMap (\e -> "   " ++ show e ++ "\n") (Map.toList $ varTable hogo) ++ "\n" ++
     "Procedure Table: " ++ "\n"
-    ++ concatMap (\e -> "   " ++ show e ++ "\n") (Map.toList $ procTable hogo) ++ "\n" ++
+    ++ concatMap (\(e, f) -> "   " ++ show e ++ ":   " ++ show f ++ "\n") (Map.toList $ procTable hogo) ++ "\n" ++
     "Code Components: " ++ "\n" ++ concatMap (\e -> "   " ++ show e ++ "\n") (code hogo)
 
 data Variable 

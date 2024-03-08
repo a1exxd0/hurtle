@@ -8,20 +8,22 @@ import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 import Data.Maybe
 
--- | Helpers
 
+-- | Lifts a @Parser@ into a @HogoParser@
 liftHogo :: Parser a -> HogoParser a
 liftHogo p = HogoParser $ lift p
 
+-- | Parses the end of file if required
 parseToEOF :: Parser ()
 parseToEOF = do
-    _ <- hspace
     _ <- try eof
     pure ()
 
+-- | Parses a newline character
 parseNL :: Parser ()
 parseNL = do 
-    _ <- satisfy (=='\n') <|> satisfy (==',')
+    _ <- hspace
+    _ <- satisfy (=='\n') <|> satisfy (==',') <|> satisfy (==']')
     pure ()
 
 parseToNewLine :: Parser ()
@@ -82,12 +84,12 @@ parseVariableByName :: HogoParser Variable
 parseVariableByName = do
     liftHogo hspace
     _ <- liftHogo $ satisfy (==':')
-    varName <- liftHogo $ lookAhead $ manyTill anySingle  ( void (
+    varName <- liftHogo $ lookAhead $ manyTill alphaNumChar  ( void (
                 satisfy (\c -> c == ' ' || c == ',' || c == '\n')
             ))
     existence <- checkVariableExists varName
     if existence then do
-        _ <- liftHogo $ manyTill anySingle ( void (
+        _ <- liftHogo $ manyTill alphaNumChar ( void (
                 satisfy (\c -> c == ' ' || c == ',' || c == '\n')
             ))
         pure (Variable $ Key varName)
@@ -118,7 +120,7 @@ parseVariableDeclaration = do
     _ <- liftHogo $ chunk "make"
     liftHogo hspace
     _ <- liftHogo $ satisfy (=='"')
-    varName <- liftHogo $ manyTill anySingle $ lookAhead ( void (
+    varName <- liftHogo $ manyTill alphaNumChar $ lookAhead ( void (
                 satisfy (==' ')
             ))
     liftHogo hspace
@@ -139,8 +141,8 @@ getVariableName :: Parser String
 getVariableName = do
     hspace
     _ <- satisfy (== ':')
-    manyTill anySingle
-        (void (satisfy (\ c -> c == ' ' || c == '\n')))
+    manyTill alphaNumChar
+        (void (satisfy (\ c -> c == ' ' || c == '\n' || c == ']')))
 
 checkProcedureExists :: String -> HogoParser Bool
 checkProcedureExists str = do
@@ -157,18 +159,31 @@ parseProcedureCall = undefined
 
 -- | Procedure Declaration Parsers
 
-parseProgramMarkers :: [String] -> HogoParser HogoProgram
+parseProgramMarkers :: [String] -> HogoParser (HogoProgram, HogoProgram)
 parseProgramMarkers params = do
     liftHogo hspace
     _ <- liftHogo $ satisfy (=='[')
-    parseHogoWithParams params
+    liftHogo space
+    prog :: HogoProgram <- get
+    -- Create a new HogoProgram with empty variable and procedure tables
+    let subProgram = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
+    -- Parse the sub-program code
+    put subProgram
+    sub <- parseHogoWithParams params
+    -- Get the final state (sub-program with parsed code)
+    -- Return the sub-program
+    pure (prog, sub)
 
 parseProcedureEnd :: HogoParser Bool
 parseProcedureEnd = do
     liftHogo hspace
-    _ <- liftHogo $ satisfy (==']')
+    -- Attempt to parse "end"
+    isEnd <- optional $ liftHogo $ chunk "end"
     liftHogo hspace
-    pure True
+    -- Return True if "end" was parsed, False otherwise
+    pure $ case isEnd of
+        Just _ -> True
+        Nothing -> False
 
 parseParam :: Parser String
 parseParam = do
@@ -188,12 +203,13 @@ parseProcedureDeclaration = do
     liftHogo hspace
     _ <- liftHogo $ chunk "to"
     liftHogo hspace
-    procName <- liftHogo $ manyTill anySingle $ lookAhead ( void (
+    procName <- liftHogo $ manyTill alphaNumChar $ lookAhead ( void (
                 satisfy (==' ')
             ))
     params <- parseParams
-    prog <- parseProgramMarkers params
-    updateProcedure procName params prog
+    (prog, sub) <- parseProgramMarkers params
+    put prog
+    updateProcedure procName params sub
 
 
 -- | HogoCode Parsers
@@ -229,13 +245,22 @@ parseSingleArg = do
         parseSetWidth   = chunk "setwidth"  >> pure SetWidth
         parseSetColor   = chunk "setcolor"  >> pure SetColor
 
-parseHogoCode :: HogoParser () 
+parseHogoCode :: HogoParser ()
 parseHogoCode = do
     parseNoArgs <|> parseSingleArg              <|> parseVariableDeclaration 
                 <|> liftHogo parseToNewLine     <|> parseComment
                 <|> parseProcedureDeclaration
 
     end <- liftHogo atEnd <|> parseProcedureEnd
+    unless end parseHogoCode
+
+parseHogoCodeWithParams :: HogoParser ()
+parseHogoCodeWithParams = do
+    parseNoArgs <|> parseSingleArg              <|> parseVariableDeclaration 
+                <|> liftHogo parseToNewLine     <|> parseComment
+                <|> parseProcedureDeclaration
+
+    end <- parseProcedureEnd
     unless end parseHogoCode
 
 -- | HogoProgram Parsers
@@ -248,5 +273,5 @@ parseHogo = do
 parseHogoWithParams :: [String] -> HogoParser HogoProgram
 parseHogoWithParams params = do
     mapM_ (\(param, value) -> updateVariable param (Variable (Value value))) (zip params [1..])
-    parseHogoCode
+    parseHogoCodeWithParams
     get
