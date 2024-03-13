@@ -1,4 +1,6 @@
-module Hurtle.CodeGeneration where
+module Hurtle.CodeGeneration(
+    parseHogo
+) where
 
 import Hurtle.Types
 import Text.Megaparsec
@@ -40,6 +42,14 @@ checkProcedureExists str = do
         Just _ -> pure True
         Nothing -> pure False
 
+getProcedureParamCount :: String -> HogoParser Int
+getProcedureParamCount str = do
+    curr <- get
+    let val = Map.lookup str (procTable curr)
+    case val of
+        Just (xs, _) -> pure $ length xs
+        Nothing -> pure 0
+
 checkVariableExists :: String -> HogoParser Bool
 checkVariableExists str = do
     curr <- get
@@ -54,17 +64,89 @@ removeVariable name = do
     let updated = curr {varTable = Map.delete name $ varTable curr}
     put updated
 
-extractName :: HogoParser String
+extractName :: ParserT String
 extractName = do
-    tk <- liftHogo $ satisfy (== NAME "n/a")
+    tk <- satisfy (== NAME "n/a")
     case tk of
         (NAME name) -> pure name
-        _ -> liftHogo $ fail "Name expected"
+        _ -> fail "Name expected"
 
--- | Function Set
+extractValue :: ParserT Float
+extractValue = do
+    tk <- satisfy (== VALUE 0.0)
+    case tk of
+        (VALUE v) -> pure v
+        _ -> fail "Value expected"
+
+matchToken :: TOKENS -> ParserT TOKENS
+matchToken tk = do satisfy (== tk)
+
+parseOptionalNewLine :: ParserT ()
+parseOptionalNewLine = do
+    _ <- optional $ satisfy (== NEWLINE)
+    pure ()
+
+parseForcedNewLine :: ParserT ()
+parseForcedNewLine = do
+    _ <- satisfy (== NEWLINE) <?> " expected newline"
+    pure ()
+
+-- | Variable Parsing
+
+parseVariableByName :: HogoParser Variable
+parseVariableByName = do
+    _ <- liftHogo $ matchToken COLON
+    name <- liftHogo extractName
+    existence <- checkVariableExists name
+    if existence then do
+        pure (Variable $ Key name)
+    else
+        liftHogo $ fail $ "Variable " ++ name ++ " doesn't exist"
+
+parseVariableByValue :: HogoParser Variable
+parseVariableByValue = do
+    val <- liftHogo (extractValue <?> "expected value")
+    pure (Variable $ Value val)
+
+parseVariableOp :: HogoParser Variable
+parseVariableOp = do 
+    op <- liftHogo (parseSum <|> parseDiff <|> parseMul <?> " expected operation")
+    var1 <- parseVariable
+    op var1 <$> parseVariable
+    where
+        parseSum      = matchToken SUM         >> pure Sum
+        parseDiff     = matchToken DIFFERENCE  >> pure Difference
+        parseMul      = matchToken MULTIPLY    >> pure Multiply
+
+parseVariable :: HogoParser Variable
+parseVariable = do
+    parseVariableOp <|> parseVariableByName <|> parseVariableByValue
+
+-- | Variable Declaration
+parseVariableDeclaration :: HogoParser ()
+parseVariableDeclaration = do
+    _ <- liftHogo $ matchToken MAKE
+    _ <- liftHogo $ matchToken SPEECHMARK
+    name <- liftHogo (extractName <?> " can't get name")
+    val <- parseVariable
+    liftHogo parseForcedNewLine
+    updateVariable name val
+    updateCode $ MakeVariable name val
+
+-- | Function Declaration
+
+parseProcVarName :: ParserT String
+parseProcVarName = do
+    parseOptionalNewLine
+    _ <- try $ matchToken COLON
+    extractName
+
+parseProcVarNames :: ParserT [String]
+parseProcVarNames = do many parseProcVarName
 
 parseProgramMarkers :: [String] -> HogoParser (HogoProgram, HogoProgram)
 parseProgramMarkers params = do
+    liftHogo parseOptionalNewLine
     _ <- liftHogo $ satisfy (== LEFTBRACKET)
     prog :: HogoProgram <- get
     -- Create a new HogoProgram with empty variable and procedure tables
@@ -76,23 +158,135 @@ parseProgramMarkers params = do
     -- Return the sub-program
     pure (prog, sub)
 
+-- FINAL USE
 parseProcedureDeclaration :: HogoParser ()
 parseProcedureDeclaration = do
+    _ <- liftHogo parseOptionalNewLine
     _ <- liftHogo $ satisfy (== TO)
-    _ <- liftHogo $ optional $ satisfy (== NEWLINE)
-    name <- extractName
-    -- params <- parseParams
-    (prog, sub) <- parseProgramMarkers ["REPLACE"]
+
+    _ <- liftHogo parseOptionalNewLine
+    name <- liftHogo (extractName <?> "expected name")
+
+    params <- liftHogo parseProcVarNames
+    _ <- liftHogo parseOptionalNewLine
+
+    (prog, sub) <- parseProgramMarkers params
     put prog
-    updateProcedure name ["REPLACE"] sub
+    _ <- liftHogo parseOptionalNewLine
+    updateProcedure name params sub
+
+-- | HogoCode parsers (non-control flow)
+parseNoArgs :: HogoParser ()
+parseNoArgs = do
+    liftHogo parseOptionalNewLine
+    op <- liftHogo ((parseHome <|> parsePenUp <|> parsePenDown <|>
+        parseClearScreen) <?> " expected command with no args")
+    liftHogo (parseForcedNewLine <?> "expected new line")
+    updateCode op
+    where
+        parseHome        = matchToken HOME      >> pure Home
+        parsePenUp       = matchToken PENUP     >> pure PenUp
+        parsePenDown     = matchToken PENDOWN   >> pure PenDown
+        parseClearScreen = matchToken CLS       >> pure ClearScreen
+
+parseSingleArg :: HogoParser ()
+parseSingleArg = do
+    liftHogo parseOptionalNewLine
+    op <- liftHogo $ parseForward <|> parseBack <|> parseLeft <|>
+        parseRight <|> parseSetWidth <|> parseSetColor
+    var <- parseVariable
+    liftHogo (parseForcedNewLine <?> "expected new line")
+
+    updateCode $ op var
+    where
+        parseForward    = matchToken FORWARD  >> pure Forward
+        parseBack       = matchToken BACK     >> pure Back
+        parseLeft       = matchToken LEFT     >> pure GoLeft
+        parseRight      = matchToken RIGHT    >> pure GoRight
+        parseSetWidth   = matchToken SETWIDTH >> pure SetWidth
+        parseSetColor   = matchToken SETCOLOR >> pure SetColor
+
+-- CONTROL FLOW
+parseFor :: HogoParser ()
+parseFor = do
+    liftHogo parseOptionalNewLine
+    _ <- liftHogo $ matchToken FOR
+    liftHogo parseOptionalNewLine
+
+    -- | VARIABLE CAPTURE
+    _ <- liftHogo $ matchToken LEFTBRACKET
+    liftHogo parseOptionalNewLine
+    var <- liftHogo (extractName <?> " expected string for for loop")
+    start <- parseVariable
+    end <- parseVariable
+    step <- parseVariable
+    liftHogo parseOptionalNewLine
+    _ <- liftHogo $ matchToken RIGHTBRACKET
+    liftHogo parseOptionalNewLine
+
+    -- | PROCEDURE CAPTURE
+    updateVariable var start
+    _ <- liftHogo (matchToken LEFTBRACKET <?> " expected '[' to start code") 
+    liftHogo parseOptionalNewLine
+    code <- parseHogoFor
+    liftHogo parseOptionalNewLine
+
+    -- | END
+    removeVariable var
+    updateCode $ For var start end step code
+    pure ()
+
+parseRepeat :: HogoParser ()
+parseRepeat = do
+    liftHogo parseOptionalNewLine
+    _ <- liftHogo $ matchToken REPEAT
+
+    liftHogo parseOptionalNewLine
+    end <- liftHogo (extractValue <?> " expected end for repeat ")
+    liftHogo parseOptionalNewLine
+
+    updateVariable "i" (Variable $ Value 1.0)
+    _ <- liftHogo (matchToken LEFTBRACKET <?> " expected '[' to start code") 
+    liftHogo parseOptionalNewLine
+    code <- parseHogoFor
+    liftHogo parseOptionalNewLine
+
+    removeVariable "i"
+    updateCode $ For "i" (Variable $ Value 1) (Variable $ Value end) (Variable $ Value 1) code
+    pure ()
+
+parseFunctionCall :: HogoParser ()
+parseFunctionCall = do
+    liftHogo parseOptionalNewLine
+    name <- liftHogo extractName
+    existence <- checkProcedureExists name
+    paramCount <- getProcedureParamCount name
+    if existence then do
+        params <- replicateM paramCount parseVariable
+        liftHogo parseOptionalNewLine
+        if length params /= paramCount
+        then liftHogo $ fail $ "Expected " ++ show paramCount ++ " params but got " ++ show (length params)
+        else updateCode $ Function name params
+    else
+        liftHogo $ fail $ "Variable " ++ name ++ " doesn't exist"
+        
 
 -- NOT START POINT \/
 
+parseProcedureEnd :: ParserT Bool
+parseProcedureEnd = do
+    parseOptionalNewLine
+    rB <- optional (matchToken RIGHTBRACKET <?> " expected ']'")
+    parseOptionalNewLine
+    isEnd <- optional (matchToken END <?> " expected 'end'")
+    newLine <- optional parseForcedNewLine
+    pure $ not (isNothing isEnd || isNothing newLine || isNothing rB)
+
 parseHogoCodeWithParams :: HogoParser ()
 parseHogoCodeWithParams = do
-    parseProcedureDeclaration
+    parserCombination
 
-    let endCheck = True
+    endCheck <- liftHogo parseProcedureEnd
     unless endCheck parseHogoCode
 
 parseHogoWithParams :: [String] -> HogoParser HogoProgram
@@ -101,11 +295,46 @@ parseHogoWithParams params = do
     parseHogoCodeWithParams
     get
 
+parseForEnd :: ParserT Bool
+parseForEnd = do
+    parseOptionalNewLine
+    rB <- optional (matchToken RIGHTBRACKET <?> " expected ']'")
+    pure $ isJust rB
+
+parseForCodeHelper :: HogoParser ()
+parseForCodeHelper = do
+    parserCombination
+
+    end <- liftHogo (try parseForEnd <?> " end ']' expected")
+    unless end parseForCodeHelper
+
+parseForCode :: HogoParser HogoProgram
+parseForCode = do
+    parseForCodeHelper
+    get
+
+parseHogoFor :: HogoParser [HogoCode]
+parseHogoFor = do
+    prog :: HogoProgram <- get
+    -- Create a new HogoProgram 
+    let subProgram = HogoProgram { varTable = varTable prog, procTable = procTable prog, code = [] }
+    -- Parse the sub-program code
+    put subProgram
+    sub <- parseForCode
+    put prog
+    pure $ code sub
+
 -- | Parsers
+
+parserCombination :: HogoParser ()
+parserCombination = do
+    parseProcedureDeclaration <|> parseVariableDeclaration <|>
+        parseNoArgs <|> parseSingleArg <|> parseFor <|> parseRepeat
+        <|> parseFunctionCall
 
 parseHogoCode :: HogoParser ()
 parseHogoCode = do
-    parseProcedureDeclaration
+    parserCombination
 
     end <- liftHogo atEnd
     unless end parseHogoCode

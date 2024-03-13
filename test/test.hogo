@@ -1,1 +1,15 @@
-to name end
+make "a 5
+
+for [a 10 11 5] 
+[
+    forward 10 
+    back 4.6
+    home
+]
+
+to func :stuff [forward :stuff ] end
+home
+func 5
+
+repeat 5 [forward 2]
+home

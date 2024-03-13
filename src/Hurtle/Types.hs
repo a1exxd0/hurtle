@@ -1,5 +1,7 @@
 module Hurtle.Types where
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverlappingInstances #-}
 import Text.Megaparsec
 import qualified Data.Map.Strict as Map
 import Control.Monad.State.Strict
@@ -7,6 +9,7 @@ import Control.Monad.Except
 import Data.Void
 import Control.Applicative
 import Control.Exception (SomeException)
+import Data.List.NonEmpty (NonEmpty(..), toList, head)
 
 
 --------------------------------------------------------------------------------
@@ -56,6 +59,7 @@ data TOKENS
   | VALUE Float -- this 2nd to last
   deriving (Show, Ord)
 
+-- | Required because all 'names' and 'values' are equal in syntax
 instance Eq TOKENS where
   FOR == FOR = True
   REPEAT == REPEAT = True
@@ -87,7 +91,18 @@ instance Eq TOKENS where
 -- | This is an alias for the Megaparsec parser type; the "Void" tells it that we don't have any custom error type, and the "string" tells it that we're parsing strings.
 type Parser = Parsec Void String
 
+instance {-# OVERLAPPING #-} Show [TOKENS] where
+    show :: [TOKENS] -> String
+    show ts = '\n': showTokensWithIndex 0 ts ++ "\n"
 
+showTokensWithIndex :: Int -> [TOKENS] -> String
+showTokensWithIndex _ [] = ""
+showTokensWithIndex idx (t:ts) =
+    let tokenStr = show t
+        arrow = "  -->  "
+        padding = replicate (max 0 (3 - length (show idx))) ' ' -- Padding to align the indices
+        newline = if (idx + 1) `mod` 7 == 0 then "\n" else ""
+    in padding ++ show idx ++ " : " ++ tokenStr ++ arrow ++ newline ++ showTokensWithIndex (idx + 1) ts
 
 newtype TokenParser a = TokenParser {
     runTokenParser :: StateT [TOKENS] Parser a
@@ -122,7 +137,7 @@ data Variable
 data HogoCode
   -- | Movement Commands
   = Forward Variable
-  | Backward Variable
+  | Back Variable
   | GoLeft Variable
   | GoRight Variable
   | Home
@@ -137,12 +152,36 @@ data HogoCode
   -- | Control Flow
   | For String Variable Variable Variable [HogoCode] -- enter instansiates into ns, exit gets rid
   | Function String [Variable]
-  | Scope HogoProgram
   deriving (Show,Eq)
 
-type ParserT = Parsec Void [TOKENS]
+-- | Parse error handling
+newtype HogoParseError = HogoParseError String deriving (Show, Eq, Ord)
+
+instance ShowErrorComponent HogoParseError where
+  showErrorComponent :: HogoParseError -> String
+  showErrorComponent (HogoParseError msg) = msg
+
+type ParserT = Parsec HogoParseError [TOKENS]
 
 -- | MTL used to combine a parser state with a HogoProgram state monad.
 newtype HogoParser a = HogoParser {
     runHogoParser :: StateT HogoProgram ParserT a
 } deriving (Functor, Applicative, Monad, MonadState HogoProgram, Alternative)
+
+
+
+-- Format a HogoParseError
+
+
+formatError :: ParseErrorBundle [TOKENS] HogoParseError -> String
+formatError bundle = unlines $
+    ["\n"] ++ map ("  " ++) (formatErrors $ toList $ bundleErrors bundle)
+
+formatErrors :: [ParseError [TOKENS] HogoParseError] -> [String]
+formatErrors = map formatErrorEntry
+
+formatErrorEntry :: ParseError [TOKENS] HogoParseError -> String
+formatErrorEntry err =
+    "Error: " ++ message
+  where
+    message = show err

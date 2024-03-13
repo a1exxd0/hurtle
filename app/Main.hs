@@ -18,10 +18,10 @@ main = do
         Left err -> putStrLn $ "Tokenization error: " ++ errorBundlePretty err
         Right (result, tokenState) -> do
             -- putStrLn $ "Parsed result: " ++ show result
-            putStrLn $ "Token state: " ++ show tokenState
+            putStrLn $ "Token state: " ++ Hurtle.Types.show tokenState
             let initialState2 = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
             case runParser (runStateT (runHogoParser parseHogo) initialState2) "" tokenState of
-                Left err2 -> putStrLn $ "Syntax error: "
+                Left err2 -> putStrLn $ "Syntax error: " ++ formatError err2
                 Right (res, final) -> do
                     putStrLn $ "Final state: " ++ show final
 

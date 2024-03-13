@@ -1,4 +1,6 @@
-module Hurtle.Tokenizer where
+module Hurtle.Tokenizer(
+    parseTokens
+) where
 
 import Hurtle.Types
     ( TokenParser(TokenParser),
@@ -18,7 +20,7 @@ import Text.Megaparsec
       MonadParsec(lookAhead, try, eof) )
       
 import Text.Megaparsec.Char
-    ( alphaNumChar, char, digitChar, hspace, hspace1, newline )
+    ( alphaNumChar, char, digitChar, hspace, hspace1, newline, space )
 import Data.Char ()
 import Data.Map.Strict as Map ()
 import Control.Monad.State.Strict
@@ -46,23 +48,23 @@ parseToEOFNoSpace = do
 parseWithSpace :: Parser a -> Parser ()
 parseWithSpace ps = do
     hspace
-    _ <- ps
+    _ <- try ps
     hspace
     pure ()
 
 parseCharWithSpace :: Char -> Parser ()
 parseCharWithSpace c = do
-    parseWithSpace $ satisfy (==c)
+    try $ parseWithSpace $ satisfy (==c)
 
 parseWordWithSpace :: String -> Parser ()
 parseWordWithSpace word = do
-    parseWithSpace $ chunk word
+    try $ parseWithSpace $ chunk word
 
 parseWordForceSpace :: String -> Parser ()
 parseWordForceSpace word = do
     hspace
-    _ <- chunk word
-    hspace1 <|> try eof
+    _ <- try $ chunk word
+    try $ hspace1 <|> try eof
 
 parseComment :: Parser ()
 parseComment = do
@@ -84,12 +86,12 @@ float = do
 
 parseFor :: Parser TOKENS
 parseFor = do
-    _ <- parseWordWithSpace "for"
+    _ <- try $ parseWordForceSpace "for"
     pure FOR
 
 parseRepeat :: Parser TOKENS
 parseRepeat = do
-    _ <- parseWordWithSpace "repeat"
+    _ <- try $ parseWordForceSpace "repeat"
     pure REPEAT
 
 parseControlFlow :: TokenParser ()
@@ -114,7 +116,11 @@ parseBracket :: TokenParser ()
 parseBracket = do
     x <- liftToken $ parseLeftBracket <|> parseRightBracket
     curr <- get
-    put $ x:curr
+    if x == RIGHTBRACKET then
+        if head curr == NEWLINE 
+        then put $ x:curr
+        else put $ x:NEWLINE:curr
+    else put $ x:curr
 
 -- | Markers
 
@@ -281,9 +287,9 @@ parseValue = do
 
 parseTokenCode :: TokenParser ()
 parseTokenCode = do
-    liftToken parseComment <|> parseControlFlow <|> parseBracket <|> 
+    liftToken parseComment <|> parseMovement <|> parseBracket <|> 
         parseCommaOrNewLine <|> parseMaths <|> parseVariableUsage <|>
-        parseFunctionPointers <|> parseMovement <|> parsePen <|>
+        parseFunctionPointers <|> parseControlFlow <|> parsePen <|>
         parseValue <|> parseName
 
     end <- liftToken atEnd
@@ -291,8 +297,8 @@ parseTokenCode = do
 
 parseTokens :: TokenParser [TOKENS]
 parseTokens = do
+    liftToken space
     parseTokenCode
     curr <- get
-    let res = tail curr
-    put $ reverse res
+    put $ reverse curr
     get
