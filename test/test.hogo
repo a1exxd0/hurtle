@@ -1,10 +1,1 @@
-forward 50
-make "a 5
-make "b :a
-
-;nothing valuable
-back :a
-
-to proc :inp1 :inp2 [forward :inp1 ] end
-
-to proc2 :inp1 [penup] end
+to name end

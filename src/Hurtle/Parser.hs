@@ -7,7 +7,7 @@ import Data.Char
 import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 import Data.Maybe
-
+{-
 
 -- | Lifts a @Parser@ into a @HogoParser@
 liftHogo :: Parser a -> HogoParser a
@@ -275,3 +275,5 @@ parseHogoWithParams params = do
     mapM_ (\(param, value) -> updateVariable param (Variable (Value value))) (zip params [1..])
     parseHogoCodeWithParams
     get
+
+    -}

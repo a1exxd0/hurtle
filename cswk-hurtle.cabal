@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.1.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -15,8 +15,10 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Hurtle.CodeGeneration
       Hurtle.FileReader
       Hurtle.Parser
+      Hurtle.Tokenizer
       Hurtle.Types
   other-modules:
       Paths_cswk_hurtle
