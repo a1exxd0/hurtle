@@ -1,6 +1,13 @@
+; nice looking rainbow wheels
+
 make "a 1
-setwidth 1.5
-repeat 72[
-    right 5
-    repeat 360 [forward 3, right 1, make "a sum :a 1, setcolor :a]
+setwidth 2.5
+repeat 36 [
+    right 10
+    repeat 360 [
+        forward 3
+        right 1 
+        make "a sum :a 1
+        setcolor :a
+    ]
 ]

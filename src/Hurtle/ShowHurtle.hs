@@ -183,16 +183,27 @@ updateVariable run name var xs =
             }
         }
 
+removeVariable 
+    :: HogoRun -> String -> [HogoCode] -> HogoRun
+removeVariable run name xs =
+    run { 
+        program = (program run) 
+        {
+            varTable = Map.delete name (varTable (program run)),
+            code = xs
+        }
+    }
+
 interpretRepeat :: HogoRun -> Int -> [HogoCode] -> [HogoCode] -> HogoRun
 interpretRepeat run count rep xs = 
     let tempRun = run { program = (program run) { code = concat $ replicate count rep } }  -- Set the program code to the repeated section
-        res = iterate interpret tempRun !! (count * length rep) -- Apply the interpreter function 'count' times
+        res = iterate (interpret "_" 0 0) tempRun !! (count * length rep) -- Apply the interpreter function 'count' times
     in res { program = (program run) { code = xs } } 
 
 
 
-interpret :: HogoRun -> HogoRun
-interpret run = case code (program run) of
+interpret :: String -> Int -> Int -> HogoRun -> HogoRun
+interpret watch expEnd expStep run = case code (program run) of
     [] -> run -- No commands left, return the current state
     -- | Movement Commands
     ((Forward x):xs) -> checkPenMovement run x xs 1
@@ -210,6 +221,7 @@ interpret run = case code (program run) of
     ((MakeVariable name val):xs) -> updateVariable run name val xs
     -- | Control Flow
     ((Repeat count x):xs) -> interpretRepeat run count x xs
+    ((For var start end step x):xs) -> undefined
     
 
     _ -> undefined 
@@ -220,7 +232,7 @@ showRun run = superimposeAll $
         (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
 
 animation :: HogoProgram -> Int -> Image
-animation prog s = showRun $ interpret $ iterate interpret (initialState prog) !! s
+animation prog s = showRun $ interpret "_" 0 0 $ iterate (interpret "" 0 0) (initialState prog) !! s
     
 --superimposeAll [hline 0 100 10 Gloss.black,alignLine (0, 100) 90 100 10 Gloss.green,alignLine (100,100) 180 100 10 Gloss.black,align (100,0) (Leaf $ Gloss.rotate (90) (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
     
