@@ -159,7 +159,7 @@ data HogoCode
   -- | Variable Usage
   | MakeVariable String Variable
   -- | Control Flow
-  | Repeat Int [HogoCode]
+  | Repeat Variable [HogoCode]
   | For String Variable Variable Variable [HogoCode]
   | Function String [Variable]
   deriving (Show,Eq)

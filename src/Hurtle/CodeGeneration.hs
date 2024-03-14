@@ -262,12 +262,12 @@ parseRepeat = do
     _ <- liftHogo $ matchToken REPEAT
 
     liftHogo parseOptionalNewLine
-    num <- liftHogo (extractValue <?> " expected end for repeat ")
+    num <- parseVariable
     liftHogo parseOptionalNewLine
 
     code <- parseForCapture
 
-    updateCode $ Repeat (truncate num) code
+    updateCode $ Repeat num code
     pure ()
 
 parseFunctionCall :: HogoParser ()

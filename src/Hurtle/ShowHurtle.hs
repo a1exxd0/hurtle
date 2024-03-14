@@ -203,12 +203,13 @@ removeVariable run name xs =
 
 interpretRepeat 
     :: HogoRun -- ^ Current run state
-    -> Int -- ^ Number of repeats
+    -> Variable -- ^ Number of repeats
     -> [HogoCode] -- ^ Repeated code
     -> [HogoCode] -- ^ tail of code
     -> HogoRun
 interpretRepeat run count rep xs =
-    run { program = (program run) { code = concat (replicate count rep) ++ xs } }
+    let val = getValue run count in
+        run { program = (program run) { code = concat (replicate (truncate val) rep) ++ xs } }
 
 interpretFor 
     :: HogoRun -- ^ Current run state
