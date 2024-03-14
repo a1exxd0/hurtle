@@ -128,8 +128,8 @@ parseCommaOrNewLine :: TokenParser ()
 parseCommaOrNewLine = do
     _ <- liftToken $ parseWithSpace (satisfy (==',') <|> newline)
     curr <- get
-
-    if head curr == NEWLINE 
+    if null curr then put [NEWLINE]
+    else if head curr == NEWLINE 
     then put curr
     else put $ NEWLINE:curr
 
@@ -270,7 +270,7 @@ parseName :: TokenParser ()
 parseName = do
     liftToken hspace
     nm <- liftToken $ manyTill alphaNumChar $ lookAhead ( void (
-                satisfy (==' ') <|> newline
+                satisfy (==' ') <|> newline <|> lookAhead (satisfy (==']'))
             ))
     liftToken hspace
     curr <- get
@@ -290,7 +290,7 @@ parseTokenCode = do
     liftToken parseComment <|> parseMovement <|> parseBracket <|> 
         parseCommaOrNewLine <|> parseMaths <|> parseVariableUsage <|>
         parseFunctionPointers <|> parseControlFlow <|> parsePen <|>
-        parseValue <|> parseName
+        parseValue <|> parseName <|> liftToken parseToEOFNoSpace <|> liftToken parseToEOFWithSpace
 
     end <- liftToken atEnd
     unless end parseTokenCode
@@ -300,5 +300,9 @@ parseTokens = do
     liftToken space
     parseTokenCode
     curr <- get
-    put $ reverse curr
+    let tks = reverse curr
+    case tks of
+        (NEWLINE:xs) -> put xs
+        _ -> put tks
     get
+

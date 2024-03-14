@@ -17,7 +17,6 @@ library
   exposed-modules:
       Hurtle.CodeGeneration
       Hurtle.FileReader
-      Hurtle.Parser
       Hurtle.Tokenizer
       Hurtle.Types
   other-modules:
@@ -28,7 +27,8 @@ library
       LambdaCase
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-orphans -Wno-missing-export-lists
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal
+    , base >=4.7 && <5
     , bytestring
     , containers
     , megaparsec
@@ -46,7 +46,8 @@ executable cswk-hurtle
       LambdaCase
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-orphans -Wno-missing-export-lists -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal
+    , base >=4.7 && <5
     , bytestring
     , containers
     , cswk-hurtle

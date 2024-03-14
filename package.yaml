@@ -12,6 +12,7 @@ dependencies:
 - parser-combinators
 - bytestring
 - mtl
+- ansi-terminal
 # - gloss
 # - gloss-juicy
 

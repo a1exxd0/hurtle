@@ -1,15 +1,28 @@
-make "a 5
-
-for [a 10 11 5] 
-[
-    forward 10 
-    back 4.6
-    home
+repeat 4 [
+  forward 200
+  right 90
 ]
-
-to func :stuff [forward :stuff ] end
-home
-func 5
-
-repeat 5 [forward 2]
-home
+left 135
+forward 100
+right 135
+repeat 4 [
+  forward 200
+  right 90
+]
+penup
+forward 200
+pendown
+right 45
+forward 100
+penup
+right 45
+forward 200
+pendown
+right 135
+forward 100
+penup
+left 45
+forward 200
+pendown
+left 135
+forward 100

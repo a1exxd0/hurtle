@@ -16,6 +16,23 @@ import Hurtle.Types (TokenParser)
 liftHogo :: ParserT a -> HogoParser a
 liftHogo p = HogoParser $ lift p
 
+emptyParse :: ParserT ()
+emptyParse = do
+    parseOptionalNewLine
+    _ <- eof <?> " expected end"
+    pure ()
+
+emptyScopeParse :: ParserT ()
+emptyScopeParse = do
+    parseOptionalNewLine
+    _ <- lookAhead (void $ matchToken RIGHTBRACKET) <?> "expected end"
+    pure ()
+
+parseThrow :: ParserT ()
+parseThrow = do
+    _ <- satisfy (const True)
+    fail "no"
+
 updateCode :: HogoCode -> HogoParser ()
 updateCode c = do
     curr <- get
@@ -207,6 +224,14 @@ parseSingleArg = do
         parseSetColor   = matchToken SETCOLOR >> pure SetColor
 
 -- CONTROL FLOW
+parseForCapture :: HogoParser [HogoCode]
+parseForCapture = do
+    _ <- liftHogo (matchToken LEFTBRACKET <?> " expected '[' to start code") 
+    liftHogo parseOptionalNewLine
+    code <- parseHogoFor
+    liftHogo parseOptionalNewLine
+    pure code
+
 parseFor :: HogoParser ()
 parseFor = do
     liftHogo parseOptionalNewLine
@@ -226,10 +251,7 @@ parseFor = do
 
     -- | PROCEDURE CAPTURE
     updateVariable var start
-    _ <- liftHogo (matchToken LEFTBRACKET <?> " expected '[' to start code") 
-    liftHogo parseOptionalNewLine
-    code <- parseHogoFor
-    liftHogo parseOptionalNewLine
+    code <- parseForCapture
 
     -- | END
     removeVariable var
@@ -242,17 +264,12 @@ parseRepeat = do
     _ <- liftHogo $ matchToken REPEAT
 
     liftHogo parseOptionalNewLine
-    end <- liftHogo (extractValue <?> " expected end for repeat ")
+    num <- liftHogo (extractValue <?> " expected end for repeat ")
     liftHogo parseOptionalNewLine
 
-    updateVariable "i" (Variable $ Value 1.0)
-    _ <- liftHogo (matchToken LEFTBRACKET <?> " expected '[' to start code") 
-    liftHogo parseOptionalNewLine
-    code <- parseHogoFor
-    liftHogo parseOptionalNewLine
+    code <- parseForCapture
 
-    removeVariable "i"
-    updateCode $ For "i" (Variable $ Value 1) (Variable $ Value end) (Variable $ Value 1) code
+    updateCode $ Repeat (truncate num) code
     pure ()
 
 parseFunctionCall :: HogoParser ()
@@ -276,7 +293,7 @@ parseFunctionCall = do
 parseProcedureEnd :: ParserT Bool
 parseProcedureEnd = do
     parseOptionalNewLine
-    rB <- optional (matchToken RIGHTBRACKET <?> " expected ']'")
+    rB <- try $ optional (matchToken RIGHTBRACKET <?> " expected ']'")
     parseOptionalNewLine
     isEnd <- optional (matchToken END <?> " expected 'end'")
     newLine <- optional parseForcedNewLine
@@ -303,7 +320,7 @@ parseForEnd = do
 
 parseForCodeHelper :: HogoParser ()
 parseForCodeHelper = do
-    parserCombination
+    parserCombination <|> liftHogo emptyScopeParse
 
     end <- liftHogo (try parseForEnd <?> " end ']' expected")
     unless end parseForCodeHelper
@@ -329,15 +346,20 @@ parseHogoFor = do
 parserCombination :: HogoParser ()
 parserCombination = do
     parseProcedureDeclaration <|> parseVariableDeclaration <|>
-        parseNoArgs <|> parseSingleArg <|> parseFor <|> parseRepeat
-        <|> parseFunctionCall
+        parseNoArgs <|> parseSingleArg <|> parseFor <|> parseRepeat <|>
+        parseFunctionCall <|> liftHogo parseOptionalNewLine  <|> liftHogo emptyParse
+ 
 
 parseHogoCode :: HogoParser ()
 parseHogoCode = do
     parserCombination
 
-    end <- liftHogo atEnd
-    unless end parseHogoCode
+    isStandaloneBracket <- liftHogo $ optional (matchToken LEFTBRACKET <|> matchToken RIGHTBRACKET) 
+    case isStandaloneBracket of
+        Just x -> liftHogo $ fail $ "bad " ++ show x ++ " token" 
+        Nothing -> do
+            end <- liftHogo (atEnd <?> " end expected")
+            unless end parseHogoCode
 
 parseHogo :: HogoParser HogoProgram
 parseHogo = do

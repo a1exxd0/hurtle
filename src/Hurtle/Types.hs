@@ -1,4 +1,5 @@
 module Hurtle.Types where
+
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverlappingInstances #-}
@@ -9,6 +10,8 @@ import Control.Monad.Except
 import Data.Void
 import Control.Applicative
 import Control.Exception (SomeException)
+import Data.Set(Set)
+import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty(..), toList, head)
 
 
@@ -93,7 +96,7 @@ type Parser = Parsec Void String
 
 instance {-# OVERLAPPING #-} Show [TOKENS] where
     show :: [TOKENS] -> String
-    show ts = '\n': showTokensWithIndex 0 ts ++ "\n"
+    show ts = '\n': showTokensWithIndex 0 ts ++ " EndOfInput\n"
 
 showTokensWithIndex :: Int -> [TOKENS] -> String
 showTokensWithIndex _ [] = ""
@@ -151,6 +154,7 @@ data HogoCode
   | ClearScreen
   -- | Control Flow
   | For String Variable Variable Variable [HogoCode] -- enter instansiates into ns, exit gets rid
+  | Repeat Int [HogoCode]
   | Function String [Variable]
   deriving (Show,Eq)
 
@@ -175,13 +179,36 @@ newtype HogoParser a = HogoParser {
 
 formatError :: ParseErrorBundle [TOKENS] HogoParseError -> String
 formatError bundle = unlines $
-    ["\n"] ++ map ("  " ++) (formatErrors $ toList $ bundleErrors bundle)
+    "\n" : map ("  " ++) (formatErrors $ Data.List.NonEmpty.toList $ bundleErrors bundle)
 
 formatErrors :: [ParseError [TOKENS] HogoParseError] -> [String]
 formatErrors = map formatErrorEntry
 
+
+errMsgToList :: Set (ErrorItem (Token [TOKENS])) -> [ErrorItem (Token [TOKENS])]
+errMsgToList = Data.Foldable.toList
+
+errMsgToListFancy :: Set (ErrorFancy HogoParseError) -> [ErrorFancy HogoParseError]
+errMsgToListFancy = Data.Foldable.toList
+
+
 formatErrorEntry :: ParseError [TOKENS] HogoParseError -> String
+formatErrorEntry (TrivialError pos (Just (Tokens (x :| _))) errMsg) =
+    "Error " ++ message
+  where
+    errMsgs = errMsgToList errMsg
+    tokenFaliures = [stuff | (Label stuff) <- errMsgs]
+    items = [xs | (_ :| xs) <- tokenFaliures]
+    message = "at item " ++ show pos ++ ", token " ++ show x ++ "\n  Message: " ++ show items
+
+formatErrorEntry (FancyError pos errMsg) =
+    "Error " ++ message
+  where
+    errMsgs = errMsgToListFancy errMsg
+    res = [hpe | (ErrorFail hpe) <- errMsgs]
+    message = "at item " ++ show (pos-1) ++ "\n  Message: " ++ show res
+
 formatErrorEntry err =
-    "Error: " ++ message
+  "Error: " ++ message
   where
     message = show err

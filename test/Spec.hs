@@ -10,7 +10,8 @@ tests and property tests (respectively) are written.
 {-# LANGUAGE OverloadedStrings #-}
 
 import Hurtle.Types
-import Hurtle.Parser
+import Hurtle.CodeGeneration
+import Hurtle.Tokenizer
 
 import System.Console.ANSI (clearScreen)
 import Test.Tasty
@@ -31,8 +32,6 @@ import Data.ByteString.Char8 (pack)
 import System.Directory (getDirectoryContents, doesFileExist)
 import System.FilePath (takeExtension, dropExtension)
 
-import Hurtle.Parser
-
 import Text.Megaparsec
 import Control.Monad (forM)
 import Data.List (isSuffixOf, sort)
@@ -48,6 +47,7 @@ main = do
     hasExpected <- doesFileExist expectedPath
     let testName = if hasExpected then fp else fp ++ " (no expected output)"
     let test = testCase testName do
+      -- | CHANGED TO ACCOMODATE MTL
           input <- readFile fullPath
           if hasExpected then do
             shouldBe <- read <$> readFile expectedPath
