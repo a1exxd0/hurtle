@@ -124,13 +124,14 @@ parseVariableByValue = do
 
 parseVariableOp :: HogoParser Variable
 parseVariableOp = do 
-    op <- liftHogo (parseSum <|> parseDiff <|> parseMul <?> " expected operation")
+    op <- liftHogo (parseSum <|> parseDiff <|> parseMul <|> parseDiv <?> " expected operation")
     var1 <- parseVariable
     op var1 <$> parseVariable
     where
         parseSum      = matchToken SUM         >> pure Sum
         parseDiff     = matchToken DIFFERENCE  >> pure Difference
         parseMul      = matchToken MULTIPLY    >> pure Multiply
+        parseDiv      = matchToken DIV         >> pure Divide
 
 parseVariable :: HogoParser Variable
 parseVariable = do

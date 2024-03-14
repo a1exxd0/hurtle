@@ -145,9 +145,14 @@ parseMultiply = do
     _ <- parseWordForceSpace "multiply"
     pure MULTIPLY
 
+parseDiv :: Parser TOKENS
+parseDiv = do
+    _ <- parseWordForceSpace "div"
+    pure DIV
+
 parseMaths :: TokenParser ()
 parseMaths = do
-    x <- liftToken $ parseSum <|> parseDifference <|> parseMultiply
+    x <- liftToken $ parseSum <|> parseDifference <|> parseMultiply <|> parseDiv
     curr <- get
     put $ x:curr
 

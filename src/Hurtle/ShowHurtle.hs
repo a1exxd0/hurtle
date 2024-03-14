@@ -77,6 +77,7 @@ getValue run var = let currmap = varTable (program run) in
         (Sum x y) -> getValue run x + getValue run y
         (Difference x y) -> getValue run x - getValue run y
         (Multiply x y) -> getValue run x * getValue run y
+        (Divide x y) -> getValue run x / getValue run y
 
 getProcedure :: HogoRun -> String -> ([String], HogoProgram)
 getProcedure run name = 

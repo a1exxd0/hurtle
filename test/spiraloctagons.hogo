@@ -1,12 +1,16 @@
-; 360/s
+; octagon
 
-  
+setwidth 2
 to bam :s :l :r :n :g :rp [
+    make "col 1
     repeat :rp [
+        make "col sum :col 1
+        setcolor :col
+        setwidth multiply :col 2
         right :r
         repeat :s [ 
             forward :l 
-            right multiply 360 :s 
+            right div 360 :s
         ] 
         make "l sum :l :n
         right :r 
@@ -14,4 +18,4 @@ to bam :s :l :r :n :g :rp [
     ] 
 ] end
 
-bam 5 4 3 5 0 35
+bam 8 200 3 5 0 35

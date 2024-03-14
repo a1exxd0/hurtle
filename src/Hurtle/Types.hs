@@ -44,6 +44,7 @@ data TOKENS
   | SUM
   | DIFFERENCE
   | MULTIPLY
+  | DIV
   -- | Variable Creation & Use
   | MAKE
   | SPEECHMARK
@@ -78,6 +79,7 @@ instance Eq TOKENS where
   SUM == SUM = True
   DIFFERENCE == DIFFERENCE = True
   MULTIPLY == MULTIPLY = True
+  DIV == DIV = True
   MAKE == MAKE = True
   SPEECHMARK == SPEECHMARK = True
   COLON == COLON = True
@@ -141,6 +143,7 @@ data Variable
   | Sum Variable Variable
   | Difference Variable Variable
   | Multiply Variable Variable
+  | Divide Variable Variable
   deriving (Show, Eq)
 
 data HogoCode
