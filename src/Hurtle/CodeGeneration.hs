@@ -4,12 +4,9 @@ module Hurtle.CodeGeneration(
 
 import Hurtle.Types
 import Text.Megaparsec
-import Text.Megaparsec.Char
-import Data.Char
 import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 import Data.Maybe
-import Hurtle.Types (TokenParser)
 
 -- | Helpers
 

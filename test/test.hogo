@@ -1,0 +1,17 @@
+
+  
+to bam :s :l :r :n :g :rp [
+repeat 35 [
+    setcolor :s
+ right :r
+  repeat 5
+   [ forward :l,
+    right :s ] 
+   make "l sum :l :n
+    right :r 
+    make "s sum :s :g
+    ]  
+]
+end
+
+bam 5 4 3 5 0 35
