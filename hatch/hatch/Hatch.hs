@@ -20,7 +20,7 @@ import Images
 --------------------------------------------------------------------------------
 
 fps :: Int
-fps = 30
+fps = 50
 
 runAnimation :: (Int -> Image) -> IO ()
 runAnimation = animSteps fps

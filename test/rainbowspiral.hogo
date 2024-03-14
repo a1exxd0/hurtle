@@ -1,0 +1,14 @@
+; spiral looking thing
+
+setcolor 5
+to myFunc :param [ 
+    forward 10
+    right :param
+] end
+
+
+for [a 1 20 0.5] [
+    setcolor :a
+    setwidth difference :a 1
+    myfunc multiply :a 2
+]

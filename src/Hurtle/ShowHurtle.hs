@@ -5,6 +5,7 @@ import Hatch
 import Hurtle.Types
 import qualified Data.Map.Strict as Map
 import Control.Monad.State
+import Text.Read (Lexeme(String))
 --DRAW FUNCTIONS-------------------------------------------------------
 
 -- | Gloss source code copy similar to rectanglePath
@@ -76,6 +77,12 @@ getValue run var = let currmap = varTable (program run) in
         (Sum x y) -> getValue run x + getValue run y
         (Difference x y) -> getValue run x - getValue run y
         (Multiply x y) -> getValue run x * getValue run y
+
+getProcedure :: HogoRun -> String -> ([String], HogoProgram)
+getProcedure run name = 
+    case Map.lookup name (procTable (program run)) of
+        Just val -> val
+        Nothing -> error "Procedure not found"
 
 updatePosByAngle 
     :: (Float, Float)   -- ^ Original position
@@ -194,16 +201,55 @@ removeVariable run name xs =
         }
     }
 
-interpretRepeat :: HogoRun -> Int -> [HogoCode] -> [HogoCode] -> HogoRun
-interpretRepeat run count rep xs = 
-    let tempRun = run { program = (program run) { code = concat $ replicate count rep } }  -- Set the program code to the repeated section
-        res = iterate (interpret "_" 0 0) tempRun !! (count * length rep) -- Apply the interpreter function 'count' times
-    in res { program = (program run) { code = xs } } 
+interpretRepeat 
+    :: HogoRun -- ^ Current run state
+    -> Int -- ^ Number of repeats
+    -> [HogoCode] -- ^ Repeated code
+    -> [HogoCode] -- ^ tail of code
+    -> HogoRun
+interpretRepeat run count rep xs =
+    run { program = (program run) { code = concat (replicate count rep) ++ xs } }
+
+interpretFor 
+    :: HogoRun -- ^ Current run state
+    -> String -- ^ Variable name
+    -> Variable -- ^ Initial state
+    -> Variable -- ^ End condition (>=)
+    -> Variable -- ^ Step
+    -> [HogoCode] -- ^ Repeated code
+    -> [HogoCode] -- ^ Tail code
+    -> HogoRun
+interpretFor run var strt end step rep xs = 
+    let pinit = getValue run strt
+        pend = getValue run end
+        pstep = getValue run step
+        res = [MakeVariable var strt]
+        newRep = rep ++ [MakeVariable var (Sum (Variable $ Key var) step)]
+        count = length [pinit, pstep+pinit..pend]
+    in
+        run { program = (program run) { code = res ++ concat (replicate count newRep) ++ xs } }
+
+callFunction 
+    :: HogoRun -- ^ Current run state
+    -> String -- ^ Function name
+    -> [Variable] -- ^ Arguments
+    -> [HogoCode] -- ^ Tail code
+    -> HogoRun
+callFunction run name args xs =
+    let (argNames, prog) = getProcedure run name
+        newVars = zip argNames args
+        newTable = quickUpdate run newVars
+        newProgram = (program run) { code = code prog ++ xs, varTable = newTable }
+        in run { program = newProgram }
+    where
+        quickUpdate :: HogoRun -> [(String, Variable)] -> Map.Map String Variable
+        quickUpdate prog [] = varTable (program prog)
+        quickUpdate prog ((y, var):ys) = Map.insert y var (quickUpdate prog ys)
+                
 
 
-
-interpret :: String -> Int -> Int -> HogoRun -> HogoRun
-interpret watch expEnd expStep run = case code (program run) of
+interpret :: HogoRun -> HogoRun
+interpret run = case code (program run) of
     [] -> run -- No commands left, return the current state
     -- | Movement Commands
     ((Forward x):xs) -> checkPenMovement run x xs 1
@@ -221,10 +267,8 @@ interpret watch expEnd expStep run = case code (program run) of
     ((MakeVariable name val):xs) -> updateVariable run name val xs
     -- | Control Flow
     ((Repeat count x):xs) -> interpretRepeat run count x xs
-    ((For var start end step x):xs) -> undefined
-    
-
-    _ -> undefined 
+    ((For var start end step x):xs) -> interpretFor run var start end step x xs
+    ((Function name args):xs) -> callFunction run name args xs
 
 showRun :: HogoRun -> Image
 showRun run = superimposeAll $
@@ -232,11 +276,4 @@ showRun run = superimposeAll $
         (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
 
 animation :: HogoProgram -> Int -> Image
-animation prog s = showRun $ interpret "_" 0 0 $ iterate (interpret "" 0 0) (initialState prog) !! s
-    
---superimposeAll [hline 0 100 10 Gloss.black,alignLine (0, 100) 90 100 10 Gloss.green,alignLine (100,100) 180 100 10 Gloss.black,align (100,0) (Leaf $ Gloss.rotate (90) (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
-    
--- superimposeAll [superimposeAll [hline 0 100 10 Gloss.black, alignLine (0, 100) 90 100 10 Gloss.green], align (100,100) (Leaf $ Gloss.rotate (90) (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
-    
-    
--- showRun $ interpret $ iterate interpret (initialState prog) !! s
+animation prog s = showRun $ interpret $ iterate interpret (initialState prog) !! s

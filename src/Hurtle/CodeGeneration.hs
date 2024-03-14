@@ -170,6 +170,7 @@ parseProgramMarkers params = do
     let subProgram = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
     -- Parse the sub-program code
     put subProgram
+    liftHogo parseOptionalNewLine
     sub <- parseHogoWithParams params
     -- Get the final state (sub-program with parsed code)
     -- Return the sub-program
@@ -285,7 +286,7 @@ parseFunctionCall = do
         then liftHogo $ fail $ "Expected " ++ show paramCount ++ " params but got " ++ show (length params)
         else updateCode $ Function name params
     else
-        liftHogo $ fail $ "Variable " ++ name ++ " doesn't exist"
+        liftHogo $ fail $ "Function " ++ name ++ " doesn't exist"
         
 
 -- NOT START POINT \/
@@ -293,18 +294,21 @@ parseFunctionCall = do
 parseProcedureEnd :: ParserT Bool
 parseProcedureEnd = do
     parseOptionalNewLine
-    rB <- try $ optional (matchToken RIGHTBRACKET <?> " expected ']'")
+    rB <- optional (matchToken RIGHTBRACKET <?> " expected ']'")
     parseOptionalNewLine
-    isEnd <- optional (matchToken END <?> " expected 'end'")
-    newLine <- optional parseForcedNewLine
-    pure $ not (isNothing isEnd || isNothing newLine || isNothing rB)
+    if isJust rB then do
+        _ <- matchToken END <?> " expected 'end'"
+        _ <- parseForcedNewLine
+        pure True
+    else
+        pure False
 
 parseHogoCodeWithParams :: HogoParser ()
 parseHogoCodeWithParams = do
-    parserCombination
+    parserCombination <|> liftHogo emptyScopeParse
 
-    endCheck <- liftHogo parseProcedureEnd
-    unless endCheck parseHogoCode
+    endCheck <- liftHogo (try parseProcedureEnd <?> " end ']' expected")
+    unless endCheck parseHogoCodeWithParams
 
 parseHogoWithParams :: [String] -> HogoParser HogoProgram
 parseHogoWithParams params = do

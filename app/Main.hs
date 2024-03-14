@@ -9,10 +9,13 @@ import Text.Megaparsec
 import Hurtle.Tokenizer
 import System.Console.ANSI
 import Hatch
---import System.IO(readFile)
+
+
+
 
 main :: IO ()
 main = do
+
     setSGR [System.Console.ANSI.SetColor Foreground Vivid White, SetConsoleIntensity BoldIntensity]
     putStrLn "\n\n\nEnter file name (scoped to project directory): "
     fileName <- getLine

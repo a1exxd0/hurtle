@@ -1,4 +1,5 @@
 ; nice looking rainbow wheels
+; set the frames to >1000 for maximum enjoyment
 
 make "a 1
 setwidth 2.5
