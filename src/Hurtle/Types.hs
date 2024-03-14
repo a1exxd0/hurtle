@@ -1,18 +1,24 @@
-module Hurtle.Types where
-
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverlappingInstances #-}
+
+module Hurtle.Types where
 import Text.Megaparsec
+    ( Parsec,
+      ErrorFancy(ErrorFail),
+      ErrorItem(Label, Tokens),
+      ParseError(..),
+      ParseErrorBundle(bundleErrors),
+      ShowErrorComponent(showErrorComponent),
+      Stream(Token) )
 import qualified Data.Map.Strict as Map
-import Control.Monad.State.Strict
-import Control.Monad.Except
-import Data.Void
-import Control.Applicative
-import Control.Exception (SomeException)
+import Control.Monad.State.Strict ( MonadState, StateT(StateT) )
+import Control.Monad.Except ()
+import Data.Void ( Void )
+import Control.Applicative ( Alternative )
 import Data.Set(Set)
 import Data.Foldable (toList)
-import Data.List.NonEmpty (NonEmpty(..), toList, head)
+import Data.List.NonEmpty (NonEmpty(..), toList)
 
 
 --------------------------------------------------------------------------------

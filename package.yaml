@@ -13,8 +13,8 @@ dependencies:
 - bytestring
 - mtl
 - ansi-terminal
-# - gloss
-# - gloss-juicy
+- gloss
+- gloss-juicy
 
 ghc-options:
 - -Wall
@@ -35,8 +35,7 @@ default-extensions: LambdaCase
 library:
   source-dirs:
     - src
-    
-    # - src/hatch
+    - src/hatch
 
 executable: 
   main:                Main.hs
