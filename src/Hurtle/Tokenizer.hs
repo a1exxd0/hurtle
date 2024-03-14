@@ -3,11 +3,6 @@ module Hurtle.Tokenizer(
 ) where
 
 import Hurtle.Types
-    ( TokenParser(TokenParser),
-      Parser,
-      TOKENS(VALUE, FOR, REPEAT, RIGHTBRACKET, LEFTBRACKET, NEWLINE, SUM,
-             DIFFERENCE, MULTIPLY, MAKE, SPEECHMARK, COLON, TO, END, BACK,
-             FORWARD, HOME, SETWIDTH, SETCOLOR, PENUP, PENDOWN, CLS, NAME) )
 
 import Text.Megaparsec
     ( optional,
@@ -211,12 +206,12 @@ parseBack = do
 parseLeft :: Parser TOKENS
 parseLeft = do
     _ <- parseWordForceSpace "left"
-    pure FORWARD
+    pure LEFT
 
 parseRight :: Parser TOKENS
 parseRight = do
     _ <- parseWordForceSpace "right"
-    pure FORWARD
+    pure RIGHT
 
 parseHome :: Parser TOKENS
 parseHome = do
@@ -270,7 +265,7 @@ parseName :: TokenParser ()
 parseName = do
     liftToken hspace
     nm <- liftToken $ manyTill alphaNumChar $ lookAhead ( void (
-                satisfy (==' ') <|> newline <|> lookAhead (satisfy (==']'))
+                satisfy (==' ') <|> newline <|> lookAhead (satisfy (==']') <|> lookAhead (satisfy (==',')))
             ))
     liftToken hspace
     curr <- get

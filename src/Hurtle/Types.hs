@@ -150,17 +150,17 @@ data HogoCode
   | GoLeft Variable
   | GoRight Variable
   | Home
-  -- | Variable Usage
-  | MakeVariable String Variable
   -- | Pen Commands
   | SetWidth Variable
   | SetColor Variable
   | PenUp
   | PenDown
   | ClearScreen
+  -- | Variable Usage
+  | MakeVariable String Variable
   -- | Control Flow
-  | For String Variable Variable Variable [HogoCode] -- enter instansiates into ns, exit gets rid
   | Repeat Int [HogoCode]
+  | For String Variable Variable Variable [HogoCode]
   | Function String [Variable]
   deriving (Show,Eq)
 

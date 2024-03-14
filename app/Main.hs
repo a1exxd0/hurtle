@@ -19,6 +19,7 @@ main = do
     setSGR [System.Console.ANSI.SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
     input <- readFileToLower "test/test.hogo"
     runTokenization input
+    
 
 runTokenization :: String -> IO ()
 runTokenization input = do
@@ -41,7 +42,9 @@ runSyntaxAnalysis tokenState = do
         Right (_, final) -> do
             setSGR [System.Console.ANSI.SetColor Foreground Vivid Green, SetConsoleIntensity BoldIntensity]
             putStrLn $ "Final state: " ++ show final
+            setSGR [System.Console.ANSI.SetColor Foreground Vivid White, SetConsoleIntensity NormalIntensity]
+            putStrLn "" -- to reset console colour
             runInterpreter final
-
+            
 runInterpreter :: HogoProgram -> IO ()
 runInterpreter prog = runAnimation (animation prog)

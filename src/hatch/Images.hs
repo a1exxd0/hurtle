@@ -27,7 +27,7 @@ png fname = fromMaybe (Gloss.text "PNG ERROR")
             $ loadJuicyPNG fname
 
 ant :: Image
-ant = loadPNG "ant"
+ant = scale 0.7 $ loadPNG "haskell"
 
 blank :: Image
 blank = Leaf Gloss.blank
