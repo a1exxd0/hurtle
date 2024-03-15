@@ -1,2 +1,2 @@
--- This fails because the number is missing on "forward".
+; This fails because the number is missing on "forward".
 forward

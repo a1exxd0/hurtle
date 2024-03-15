@@ -2,7 +2,7 @@
 import Hurtle.Types
 import Hurtle.FileReader
 import Hurtle.CodeGeneration
-import Hurtle.ShowHurtle
+import Hurtle.ShowHurtle hiding (initialState)
 import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 import Text.Megaparsec
@@ -10,14 +10,11 @@ import Hurtle.Tokenizer
 import System.Console.ANSI
 import Hatch
 
-
-
-
 main :: IO ()
 main = do
 
     setSGR [System.Console.ANSI.SetColor Foreground Vivid White, SetConsoleIntensity BoldIntensity]
-    putStrLn "\n\n\nEnter file name (scoped to project directory): "
+    putStrLn "\n\n\nEnter file name (scoped to project directory, i.e. test/<name>.hogo): "
     fileName <- getLine
     setSGR [System.Console.ANSI.SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
     input <- readFileToLower fileName

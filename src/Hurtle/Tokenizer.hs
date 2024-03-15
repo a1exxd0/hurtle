@@ -104,7 +104,7 @@ parseRightBracket = do
 parseLeftBracket :: Parser TOKENS
 parseLeftBracket = do
     _ <- parseCharWithSpace '['
-    _ <- optional crlf
+    _ <- optional (satisfy (=='\r'))
     pure LEFTBRACKET
 
 parseBracket :: TokenParser ()
@@ -121,6 +121,7 @@ parseBracket = do
 
 parseCommaOrNewLine :: TokenParser ()
 parseCommaOrNewLine = do
+    _ <- liftToken $ optional $ satisfy (=='\r')
     _ <- liftToken $ parseWithSpace (satisfy (==',') <|> newline)
     curr <- get
     if null curr then put [NEWLINE]

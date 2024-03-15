@@ -43,6 +43,19 @@ import Data.Map.Strict as Map
 import Control.Monad.State.Strict
 
 
+
+{-
+  To the marker! I've changed the tests so that they run with my StateT wrapper to make
+  it easier for you. Previously, it asssumed HogoParser was a Parser HogoProgram (where
+  this was a list of HogoCodes), but I've changed it to be a StateT ___, meaning the 
+  running method is different. This won't display any files but it will show you outputs
+  and errors for parsing
+
+  I've added Alex's extra tests too, but this does not display in full form the functionality
+  of my program. If you haven't already, check out test/spiraloctagons.hogo.
+
+-}
+
 main :: IO ()
 main = do
 

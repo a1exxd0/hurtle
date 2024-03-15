@@ -4,8 +4,6 @@ import Graphics.Gloss as Gloss
 import Hatch
 import Hurtle.Types
 import qualified Data.Map.Strict as Map
-import Control.Monad.State
-import Text.Read (Lexeme(String))
 --DRAW FUNCTIONS-------------------------------------------------------
 
 -- | Gloss source code copy similar to rectanglePath

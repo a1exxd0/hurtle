@@ -3,10 +3,29 @@ module Hurtle.CodeGeneration(
 ) where
 
 import Hurtle.Types
+    ( HogoCode(..),
+      HogoParser(HogoParser),
+      HogoProgram(..),
+      KeyValue(Value, Key),
+      ParserT,
+      TOKENS(..),
+      Variable(..) )
 import Text.Megaparsec
-import Data.Map.Strict as Map
+    ( (<|>),
+      optional,
+      (<?>),
+      atEnd,
+      satisfy,
+      many,
+      MonadParsec(try, eof, lookAhead) )
+import Data.Map.Strict as Map ( delete, empty, lookup, insert )
 import Control.Monad.State.Strict
-import Data.Maybe
+    ( MonadState(get, put),
+      replicateM,
+      unless,
+      void,
+      MonadTrans(lift) )
+import Data.Maybe ( isJust )
 
 -- | Helpers
 
@@ -24,11 +43,6 @@ emptyScopeParse = do
     parseOptionalNewLine
     _ <- lookAhead (void $ matchToken RIGHTBRACKET) <?> "expected end"
     pure ()
-
-parseThrow :: ParserT ()
-parseThrow = do
-    _ <- satisfy (const True)
-    fail "no"
 
 updateCode :: HogoCode -> HogoParser ()
 updateCode c = do

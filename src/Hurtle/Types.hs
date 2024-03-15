@@ -3,6 +3,8 @@
 {-# LANGUAGE OverlappingInstances #-}
 
 module Hurtle.Types where
+
+-- | Parsing imports
 import Text.Megaparsec
     ( Parsec,
       ErrorFancy(ErrorFail),
@@ -11,6 +13,8 @@ import Text.Megaparsec
       ParseErrorBundle(bundleErrors),
       ShowErrorComponent(showErrorComponent),
       Stream(Token) )
+
+-- | Data imports for containers
 import qualified Data.Map.Strict as Map
 import Control.Monad.State.Strict ( MonadState, StateT(StateT) )
 import Control.Monad.Except ()
@@ -21,16 +25,10 @@ import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty(..), toList)
 
 
---------------------------------------------------------------------------------
--- | Type Definitions
-data KeyValue k v 
-  -- | Used to represent a variable name
-  = Key k 
-  -- | Used to represent a numeric type
-  | Value v 
-  deriving (Show, Eq)
+--TOKENIZATION STEP-----------------------------------------------------
 
---------------------------------------------------------------------------------
+-- | The TOKENS type is used to represent the different types of tokens that can be found in a Hogo program.
+-- | We don't check syntax here, just isolate tokens for ease of comparison later, looking at keywords.
 data TOKENS
   -- | Control flow
   = FOR
@@ -65,47 +63,54 @@ data TOKENS
   | PENDOWN
   | CLS
   -- | Variables / Functions
-  | NAME String -- Check this last
-  | VALUE Float -- this 2nd to last
+  | NAME String
+  | VALUE Float
   deriving (Show, Ord)
 
 -- | Required because all 'names' and 'values' are equal in syntax
+-- | Specific equality check to ignore String/Float differences in variabes
+-- | Automatic deriving won't let us do this
 instance Eq TOKENS where
-  FOR == FOR = True
-  REPEAT == REPEAT = True
-  LEFTBRACKET == LEFTBRACKET = True
-  RIGHTBRACKET == RIGHTBRACKET = True
-  NEWLINE == NEWLINE = True
-  SUM == SUM = True
-  DIFFERENCE == DIFFERENCE = True
-  MULTIPLY == MULTIPLY = True
-  DIV == DIV = True
-  MAKE == MAKE = True
-  SPEECHMARK == SPEECHMARK = True
-  COLON == COLON = True
-  TO == TO = True
-  END == END = True
-  FORWARD == FORWARD = True
-  BACK == BACK = True
-  LEFT == LEFT = True
-  RIGHT == RIGHT = True
-  HOME == HOME = True
-  SETWIDTH == SETWIDTH = True
-  SETCOLOR == SETCOLOR = True
-  PENUP == PENUP = True
-  PENDOWN == PENDOWN = True
-  CLS == CLS = True
-  NAME _ == NAME _ = True
-  VALUE _ == VALUE _ = True
-  _ == _ = False
+  (==) :: TOKENS -> TOKENS -> Bool
+  FOR == FOR                    = True
+  REPEAT == REPEAT              = True
+  LEFTBRACKET == LEFTBRACKET    = True
+  RIGHTBRACKET == RIGHTBRACKET  = True
+  NEWLINE == NEWLINE            = True
+  SUM == SUM                    = True
+  DIFFERENCE == DIFFERENCE      = True
+  MULTIPLY == MULTIPLY          = True
+  DIV == DIV                    = True
+  MAKE == MAKE                  = True
+  SPEECHMARK == SPEECHMARK      = True
+  COLON == COLON                = True
+  TO == TO                      = True
+  END == END                    = True
+  FORWARD == FORWARD            = True
+  BACK == BACK                  = True
+  LEFT == LEFT                  = True
+  RIGHT == RIGHT                = True
+  HOME == HOME                  = True
+  SETWIDTH == SETWIDTH          = True
+  SETCOLOR == SETCOLOR          = True
+  PENUP == PENUP                = True
+  PENDOWN == PENDOWN            = True
+  CLS == CLS                    = True
+  NAME _ == NAME _              = True
+  VALUE _ == VALUE _            = True
 
--- | This is an alias for the Megaparsec parser type; the "Void" tells it that we don't have any custom error type, and the "string" tells it that we're parsing strings.
+  -- | In any case where tokens arent the same
+  _ == _                        = False
+
+-- | Parser type with void error, parsing a list of characters (string)
 type Parser = Parsec Void String
 
+-- | Explicit marking for end of input
 instance {-# OVERLAPPING #-} Show [TOKENS] where
     show :: [TOKENS] -> String
     show ts = '\n': showTokensWithIndex 0 ts ++ " EndOfInput\n"
 
+-- | Format tokens in max 7 to a line, with spaced out arrows in between
 showTokensWithIndex :: Int -> [TOKENS] -> String
 showTokensWithIndex _ [] = ""
 showTokensWithIndex idx (t:ts) =
@@ -115,12 +120,32 @@ showTokensWithIndex idx (t:ts) =
         newline = if (idx + 1) `mod` 7 == 0 then "\n" else ""
     in padding ++ show idx ++ " : " ++ tokenStr ++ arrow ++ newline ++ showTokensWithIndex (idx + 1) ts
 
+-- | Parser state monad for easy tokenization and code safety
 newtype TokenParser a = TokenParser {
     runTokenParser :: StateT [TOKENS] Parser a
 } deriving (Functor, Applicative, Monad, MonadState [TOKENS], Alternative)
---------------------------------------------------------------------------------
 
--- | A Hogo program is a list of HogoCode instructions
+
+
+
+--SYNTAX ANALYSIS STEP-----------------------------------------------------
+
+
+-- | A KeyValue is used to represent a variable name and its value
+data KeyValue k v 
+  -- | Used to represent a variable name
+  = Key k 
+  -- | Used to represent a numeric type
+  | Value v 
+  deriving (Show, Eq)
+
+
+
+-- | A HogoProgram is used to represent the state of a Hogo program at any given time.
+-- | It contains a variable table, a procedure table, and a list of code components.
+-- | @param@ varTable: A map of variable names to their values
+-- | @param@ procTable: A map of procedure names to their arguments and their code
+-- | @param@ code: A list of HogoCode components
 data HogoProgram = HogoProgram {
   varTable :: Map.Map String Variable,
   procTable :: Map.Map String ([String], HogoProgram),

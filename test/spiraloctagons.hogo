@@ -1,21 +1,58 @@
 ; octagon
 
 setwidth 2
+
+; make a function (i took this from Logo Turtle, but
+; that's not the point of the CW so I think it's fine?)
+
+
+; bored? adjust the call at the bottom! or turn up fps in src/hatch/Hatch.hs
+
+; 'to' declares a procedure, followed by :params, then the
+; program scoped
+
+
 to bam :s :l :r :n :g :rp [
-    make "col 1
-    repeat :rp [
-        make "col sum :col 1
-        setcolor :col
-        setwidth multiply :col 2
-        right :r
-        repeat :s [ 
-            forward :l 
-            right div 360 :s
-        ] 
-        make "l sum :l :n
-        right :r 
-        make "s sum :s :g
+
+    make "col 1 ;make a variable col the value 1
+
+    repeat :rp [                    ; repeat this rp times
+        make "col sum :col 1        ; add 1 to the value of col
+        setcolor :col               ; set the color [truncates the value for cheeky type safety]
+        setwidth multiply :col 1.01 ; set the width and expand slowly
+        right :r                    ; rotate right by parameter
+        repeat :s [                 ; repeat s times by parameter
+            forward :l              ; move forward l by param
+            right div 360 :s        ; go right by 360 div param
+        ]                           ; scope repeat close
+        make "l sum :l :n           ; make l the sum of 2 params
+        right :r                    ; go right by param
+        make "s sum :s :g           ; make s the sum of 2 params
     ] 
+
 ] end
 
-bam 8 200 3 5 0 35
+
+; functions? lets look at myReturn!
+; very impure but it makes the first value the sum of the first and second
+
+to func :param1 :param2 [
+    make "param1 sum :param1 :param2
+] end
+
+make "myReturn 5
+
+func :myReturn 8                ;sums 5 and 8 and stores in myReturn
+
+bam 8 100 3 5 0 200              ; quality func call
+                                 ; change 8 to something big if you want circles
+                                 ; but scale down 100 to like 10 or less
+
+                                 ; cheeky combo is "bam 50 5 3 5 0 500" if your pc doesn't explode
+
+
+
+; UNCOMMENT AND COMMENT ABOVE CALL WHEN YOU WANT 
+; bam 50 5 3 5 0 500
+
+; zoom out on the UI :D
