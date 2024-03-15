@@ -35,11 +35,18 @@ import System.FilePath (takeExtension, dropExtension)
 import Text.Megaparsec
 import Control.Monad (forM)
 import Data.List (isSuffixOf, sort)
+import Hurtle.FileReader
+import Hurtle.Tokenizer
+import Hurtle.ShowHurtle
+import Hurtle.CodeGeneration
+import Data.Map.Strict as Map
+import Control.Monad.State.Strict
+
 
 main :: IO ()
 main = do
 
-  passingFiles <- filter (\fp -> takeExtension fp == ".hogo") 
+  passingFiles <- Prelude.filter (\fp -> takeExtension fp == ".hogo") 
     <$> getDirectoryContents "examples/passing"
   passingCases <- forM (sort passingFiles) $ \fp -> do
     let fullPath = "examples/passing/" ++ fp
@@ -48,30 +55,38 @@ main = do
     let testName = if hasExpected then fp else fp ++ " (no expected output)"
     let test = testCase testName do
       -- | CHANGED TO ACCOMODATE MTL
-          input <- readFile fullPath
-          if hasExpected then do
-            shouldBe <- read <$> readFile expectedPath
-            case parse parseHogo fp input of
-              Left err -> assertFailure $ "Parse error: " ++ errorBundlePretty err
-              Right res -> res @?= shouldBe
-          else 
-            case parse parseHogo fp input of
-              Left err -> assertFailure $ "Parse error: " ++ errorBundlePretty err
-              Right _ -> pure () -- Assume all good
+          input <- readFileToLower fullPath
 
+          let initialState = []
+          case runParser (runStateT (runTokenParser parseTokens) initialState) fp (input ++ "\n") of
+              Left err -> do assertFailure $ "Tokenization error: " ++ errorBundlePretty err
+              Right (_, tokenState) -> do
+                  putStrLn $ "Token state: " ++ show tokenState
+                  let initialState2 = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
+                  case runParser (runStateT (runHogoParser parseHogo) initialState2) fp tokenState of
+                      Left err2 -> do assertFailure $ "Syntax error: " ++ formatError err2
+                      Right (_, final) -> do
+                          putStrLn $ "Final state: " ++ show final
+                          pure ()
     return test
-  failingFiles <- filter (".hogo" `isSuffixOf`) 
+  
+  failingFiles <- Prelude.filter (".hogo" `isSuffixOf`) 
     <$> getDirectoryContents "examples/failing"
   failingCases <- forM (sort failingFiles) $ \fp -> do
     let fullPath = "examples/failing/" ++ fp
     let test = testCase fp do
-          input <- readFile fullPath
-          case parse parseHogo fp input of
-            Left _ -> return ()
-            Right res -> assertFailure 
-              $ "Expected parse error, but parsing was successful.\n"
-                <> "Result was the following program:\n" 
-                <> show res
+          input <- readFileToLower fullPath
+          let initialState = []
+          case runParser (runStateT (runTokenParser parseTokens) initialState) fp (input ++ "\n") of
+              Left err -> do assertFailure $ "Tokenization error: " ++ errorBundlePretty err
+              Right (_, tokenState) -> do
+                  putStrLn $ "Token state: " ++ show tokenState
+                  let initialState2 = HogoProgram { varTable = Map.empty, procTable = Map.empty, code = [] }
+                  case runParser (runStateT (runHogoParser parseHogo) initialState2) fp tokenState of
+                      Left err2 -> do assertFailure $ "Syntax error: " ++ formatError err2
+                      Right (_, final) -> do
+                          putStrLn $ "Final state: " ++ show final
+                          pure ()
     return test
 
   clearScreen

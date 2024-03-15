@@ -20,7 +20,7 @@ main = do
     putStrLn "\n\n\nEnter file name (scoped to project directory): "
     fileName <- getLine
     setSGR [System.Console.ANSI.SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
-    input <- readFileToLower "test/test.hogo"
+    input <- readFileToLower fileName
     runTokenization input
     
 

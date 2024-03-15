@@ -13,9 +13,8 @@ import Text.Megaparsec
       some,
       (<|>),
       MonadParsec(lookAhead, try, eof) )
-      
 import Text.Megaparsec.Char
-    ( alphaNumChar, char, digitChar, hspace, hspace1, newline, space )
+    ( alphaNumChar, char, digitChar, hspace, hspace1, newline, space, crlf )
 import Data.Char ()
 import Data.Map.Strict as Map ()
 import Control.Monad.State.Strict
@@ -105,6 +104,7 @@ parseRightBracket = do
 parseLeftBracket :: Parser TOKENS
 parseLeftBracket = do
     _ <- parseCharWithSpace '['
+    _ <- optional crlf
     pure LEFTBRACKET
 
 parseBracket :: TokenParser ()
