@@ -1,12 +1,50 @@
 module Hurtle.ShowHurtle where
 
+-- | Graphics
 import Graphics.Gloss as Gloss
-import Hatch
-import Hurtle.Types
-import qualified Data.Map.Strict as Map
---DRAW FUNCTIONS-------------------------------------------------------
+    ( Picture(Polygon),
+      aquamarine,
+      azure,
+      black,
+      blue,
+      chartreuse,
+      cyan,
+      green,
+      magenta,
+      orange,
+      red,
+      rose,
+      violet,
+      yellow,
+      color,
+      rotate,
+      scale,
+      translate,
+      blank,
+      Color )
+import Images ( png )
+import Layout ( superimposeAll, Arrange(Leaf), Image )
 
--- | Gloss source code copy similar to rectanglePath
+-- HogoProgram Interpretation
+import Hurtle.Types
+    ( HogoCode(..),
+      Variable(..),
+      HogoProgram(code, procTable, varTable),
+      KeyValue(Key, Value) )
+import qualified Data.Map.Strict as Map
+
+--DRAW BASIC SHAPES-------------------------------------------------------
+
+-- | Gloss source code copy similar to rectanglePath. This is adjusted
+--   for use specifically because the path created (Gloss.Path) is a
+--   rectangle such that the rectangle formed is not centered around
+--   input parameters, but instead only centered on @X@, and starts on
+--   @Y=0@ and points directly upwards.
+--
+--   The implication of this is that the float inputs represent the width
+--   of the pen, and the distance the turtle will travel. The central point
+--   of the end of the rectangle is also the resultant coordinate after
+--   the turtle moves.
 customRect
         :: Float        -- ^ width of rectangle
         -> Float        -- ^ height of rectangle
@@ -15,7 +53,8 @@ customRect sizeX sizeY
  = let  sx      = sizeX / 2
    in   Polygon [(-sx, 0.0), (-sx, sizeY), (sx, sizeY), (sx, 0.0)]
 
--- | Draw line with angle, length, width, and color params
+-- | Draw line with angle, length, width, and color parameters.
+--   Drawn using a @customRect@, not a @Gloss.line@.
 hline 
     :: Float -- ^ Angle of rotation clockwise (0 => vertical up)
     -> Float -- ^ Length
@@ -25,32 +64,60 @@ hline
 hline angle len wid cl = 
     Leaf $ Gloss.rotate angle $ Gloss.color cl $ customRect wid len
 
-align :: (Float, Float) -> Image -> Image
+-- | Align an image with a float coordinate
+align 
+    :: (Float, Float)         -- ^ Coordinates to displace image by
+    -> Image                  -- ^ Image to dispace  
+    -> Image
 align (x, y) = fmap (Gloss.translate x y)
 
--- | Align a 'hline' to a position
+-- | Construct a @hline@ and align @hline@ to a coordinate
 alignLine 
     :: (Float, Float) -- ^ Hurtle position
-    -> Float -> Float -> Float -> Color -- ^ hline params
+    -> Float          -- ^ Angle of rotation clockwise (0 => vertical up)
+    -> Float          -- ^ Length
+    -> Float          -- ^ Width
+    -> Color          -- ^ Gloss.Color colour
     -> Image
 alignLine coords angle len wid cl = 
     align coords $ hline angle len wid cl
 
 
+-- | Given a float input, convert to a colour
+chooseColor 
+    :: Float          -- ^ Float to convert
+    -> Color
+chooseColor value = colors !! index
+    where
+        index = floor value `mod` 13
+        colors = 
+            [
+                red, green, blue, yellow, cyan,
+                magenta, rose, violet, azure,
+                aquamarine, chartreuse, orange, black
+            ]   
 
 
---STATE CONTAINERS----------------------------------------------------
+
+--STATE CONTAINERS & HELPERS----------------------------------------------------
+
+-- | Container for current run state
 data HogoRun = HogoRun {
-    program :: HogoProgram,
-    penState :: Bool,
-    penColor :: Gloss.Color,
-    penWidth :: Float,
-    turtlePos :: (Float, Float),
-    turtleDir :: Float,
-    currentImage :: [Image]
+    program :: HogoProgram,         -- ^ Current program state to be interpreted
+    penState :: Bool,               -- ^ Pen state, true => draw, false => move only
+    penColor :: Gloss.Color,        -- ^ Pen colour
+    penWidth :: Float,              -- ^ Pen width
+    turtlePos :: (Float, Float),    -- ^ Current position of Hurtle
+    turtleDir :: Float,             -- ^ Current direction in clockwise degrees of turtle (0 is up)
+    currentImage :: [Image]         -- ^ List of images formed by prgram code
 }
 
-initialState :: HogoProgram -> HogoRun
+-- | Initial state (doesn't really matter what this is).
+--   You can change the background colour here by adjusting 
+--   currentImage.
+initialState 
+    :: HogoProgram      -- ^ A HogoProgram object to interpret
+    -> HogoRun
 initialState program = HogoRun {
     program = program,
     penState = True,
@@ -58,29 +125,47 @@ initialState program = HogoRun {
     penWidth = 5,
     turtlePos = (0.0, 0.0),
     turtleDir = 0,
-    currentImage = [Hatch.blank]
+    currentImage = [Leaf Gloss.blank]
 }
 
-
+-- | Get the float value out of a variable. Variables can be
+--   a combination of operators of variables, or a string
+--   referencing another (existing) variable, enforced at syntax
+--   analysis, or simply a float value.
+--
+--   All variables can be converted to a float value due to
+--   syntax analysis stage, so recursively locate the float value
+--   
+--   You can consider a variable storing a reference to another
+--   variable as just that, if the variable it is referencing
+--   changes, then the value it gets for itself also changes.
 getValue :: HogoRun -> Variable -> Float
-getValue run var = let currmap = varTable (program run) in
+getValue run var = 
+
+    -- Get the variable map of the current state
+    let currmap = varTable (program run) in
     case var of
+
+        -- Either references another variable or contains float value
         (Variable x) -> case x of
             (Key k) -> let found = Map.lookup k currmap in
                 case found of
+                    -- Recursively trace the float value
                     Just val -> getValue run val
-                    Nothing -> error "not possible"
-            (Value v) -> v
+                    -- \/ this case is never reached due to syntax analysis
+                    Nothing -> error "not possible" 
+            (Value v) -> v -- Or return a float directly
 
-        (Sum x y) -> getValue run x + getValue run y
+        -- Get the float values of parameters and perform maths
+        (Sum x y)        -> getValue run x + getValue run y
         (Difference x y) -> getValue run x - getValue run y
-        (Multiply x y) -> getValue run x * getValue run y
-        (Divide x y) -> getValue run x / getValue run y
+        (Multiply x y)   -> getValue run x * getValue run y
+        (Divide x y)     -> getValue run x / getValue run y
 
 getProcedure :: HogoRun -> String -> ([String], HogoProgram)
 getProcedure run name = 
     case Map.lookup name (procTable (program run)) of
-        Just val -> val
+        Just details -> details
         Nothing -> error "Procedure not found"
 
 updatePosByAngle 
@@ -132,16 +217,7 @@ rotateByAngle run x xs mul =
 
         in run { program = newProgram, turtleDir = newDir}
 
-chooseColor :: Float -> Color
-chooseColor value = colors !! index
-    where
-        index = floor value `mod` 13
-        colors = 
-            [
-                red, green, blue, yellow, cyan,
-                magenta, rose, violet, azure,
-                aquamarine, chartreuse, orange, black
-            ]   
+
 
 setHogoColor 
     :: HogoRun -- ^ Current run state
@@ -262,7 +338,7 @@ interpret run = case code (program run) of
     ((SetWidth x):xs) -> setHogoWidth run x xs
     (PenUp:xs) -> run {penState = False, program = (program run) { code = xs } }
     (PenDown:xs) -> run {penState = True, program = (program run) { code = xs } }
-    (ClearScreen:xs) -> run {program = (program run) { code = xs }, currentImage = [Hatch.blank]}
+    (ClearScreen:xs) -> run {program = (program run) { code = xs }, currentImage = [Leaf Gloss.blank]}
     -- | Variable Usage
     ((MakeVariable name val):xs) -> updateVariable run name val xs
     -- | Control Flow

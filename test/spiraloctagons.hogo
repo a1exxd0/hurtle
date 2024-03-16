@@ -44,7 +44,7 @@ make "myReturn 5
 
 func :myReturn 8                ;sums 5 and 8 and stores in myReturn
 
-bam 8 100 3 5 0 200              ; quality func call
+bam 8 100 3 5 0 420              ; quality func call
                                  ; change 8 to something big if you want circles
                                  ; but scale down 100 to like 10 or less
 

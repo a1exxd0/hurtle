@@ -28,7 +28,8 @@ import Data.List.NonEmpty (NonEmpty(..), toList)
 --TOKENIZATION STEP-----------------------------------------------------
 
 -- | The TOKENS type is used to represent the different types of tokens that can be found in a Hogo program.
--- | We don't check syntax here, just isolate tokens for ease of comparison later, looking at keywords.
+--
+--   We don't check syntax here, just isolate tokens for ease of comparison later, looking at keywords.
 data TOKENS
   -- | Control flow
   = FOR
@@ -56,7 +57,7 @@ data TOKENS
   | LEFT
   | RIGHT
   | HOME
-  -- |Pen
+  -- | Pen commands
   | SETWIDTH
   | SETCOLOR
   | PENUP
@@ -68,8 +69,9 @@ data TOKENS
   deriving (Show, Ord)
 
 -- | Required because all 'names' and 'values' are equal in syntax
--- | Specific equality check to ignore String/Float differences in variabes
--- | Automatic deriving won't let us do this
+--
+--   Specific equality check to ignore String/Float differences in variabes,
+--   since utomatic deriving won't let us do this.
 instance Eq TOKENS where
   (==) :: TOKENS -> TOKENS -> Bool
   FOR == FOR                    = True
@@ -97,10 +99,8 @@ instance Eq TOKENS where
   PENDOWN == PENDOWN            = True
   CLS == CLS                    = True
   NAME _ == NAME _              = True
-  VALUE _ == VALUE _            = True
-
-  -- | In any case where tokens arent the same
-  _ == _                        = False
+  VALUE _ == VALUE _            = True   
+  _ == _                        = False -- ^ In any case where tokens arent the same
 
 -- | Parser type with void error, parsing a list of characters (string)
 type Parser = Parsec Void String
@@ -111,12 +111,15 @@ instance {-# OVERLAPPING #-} Show [TOKENS] where
     show ts = '\n': showTokensWithIndex 0 ts ++ " EndOfInput\n"
 
 -- | Format tokens in max 7 to a line, with spaced out arrows in between
-showTokensWithIndex :: Int -> [TOKENS] -> String
+showTokensWithIndex 
+  :: Int          -- ^ Index of token
+  -> [TOKENS]     -- ^ List of tokens
+  -> String       -- ^ String representation of tokens
 showTokensWithIndex _ [] = ""
 showTokensWithIndex idx (t:ts) =
     let tokenStr = show t
         arrow = "  -->  "
-        padding = replicate (max 0 (3 - length (show idx))) ' ' -- Padding to align the indices
+        padding = replicate (max 0 (3 - length (show idx))) ' '
         newline = if (idx + 1) `mod` 7 == 0 then "\n" else ""
     in padding ++ show idx ++ " : " ++ tokenStr ++ arrow ++ newline ++ showTokensWithIndex (idx + 1) ts
 
@@ -133,27 +136,38 @@ newtype TokenParser a = TokenParser {
 
 -- | A KeyValue is used to represent a variable name and its value
 data KeyValue k v 
-  -- | Used to represent a variable name
-  = Key k 
-  -- | Used to represent a numeric type
-  | Value v 
+  = Key k           -- ^ Used to represent a variable name
+  | Value v         -- ^ Used to represent a numeric type (or value of sorts)
   deriving (Show, Eq)
 
 
 
 -- | A HogoProgram is used to represent the state of a Hogo program at any given time.
--- | It contains a variable table, a procedure table, and a list of code components.
--- | @param@ varTable: A map of variable names to their values
--- | @param@ procTable: A map of procedure names to their arguments and their code
--- | @param@ code: A list of HogoCode components
+--   It contains a variable table, a procedure table, and a list of code components.
+--   @param@ varTable: A map of variable names to their values
+--   @param@ procTable: A map of procedure names to their arguments and their code
+--   @param@ code: A list of HogoCode components
 data HogoProgram = HogoProgram {
-  varTable :: Map.Map String Variable,
-  procTable :: Map.Map String ([String], HogoProgram),
-  code     :: [HogoCode]
+  varTable :: Map.Map String Variable,                    -- ^ Variable Table
+  procTable :: Map.Map String ([String], HogoProgram),    -- ^ Procedure Table
+  code     :: [HogoCode]                                  -- ^ Code Components
   } 
   deriving (Eq)
 
 
+{-
+  A mini commentary on my usage of strict maps!
+
+  1) More performance efficient generally
+  2) Guaranteed predictability when I perform an action, i.e.
+      I know that if I add a variable to the table, it will be there
+      and I can access it immediately.
+-}
+
+
+-- | Show instance for HogoProgram to format nicely.
+--   Subprograms are NOT inlined (for procedures). 
+--   This is for debugging purposes but can suffice.
 instance Show HogoProgram where
   show :: HogoProgram -> String
   show hogo = 
@@ -163,42 +177,75 @@ instance Show HogoProgram where
     ++ concatMap (\(e, f) -> "   " ++ show e ++ ":   " ++ show f ++ "\n") (Map.toList $ procTable hogo) ++ "\n" ++
     "Code Components: " ++ "\n" ++ concatMap (\e -> "   " ++ show e ++ "\n") (code hogo)
 
+-- | A 'Variable' is used to represent a float or variable in a Hogo program.
 data Variable 
-  = Variable (KeyValue String Float)
-  | Sum Variable Variable
-  | Difference Variable Variable
-  | Multiply Variable Variable
-  | Divide Variable Variable
+  = Variable (KeyValue String Float) -- ^ Either a string name or a float value
+  | Sum Variable Variable            -- ^ Sum of two variables
+  | Difference Variable Variable     -- ^ Difference of two variables
+  | Multiply Variable Variable       -- ^ Product of two variables
+  | Divide Variable Variable         -- ^ Quotient of two variables
   deriving (Show, Eq)
 
+-- | A 'HogoCode' is used to represent the different types of commands that can be found in a Hogo program.
 data HogoCode
+
   -- | Movement Commands
-  = Forward Variable
-  | Back Variable
-  | GoLeft Variable
-  | GoRight Variable
-  | Home
+  = Forward     -- ^ Move forward
+    Variable
+  | Back        -- ^ Move back
+    Variable
+  | GoLeft      -- ^ Turn left
+    Variable              -- ^ By a variable angle in degrees
+  | GoRight     -- ^ Turn right  
+    Variable              -- ^ By a variable angle in degrees
+  | Home        -- ^ Return to the origin
+
+
   -- | Pen Commands
-  | SetWidth Variable
-  | SetColor Variable
-  | PenUp
-  | PenDown
-  | ClearScreen
+
+  | SetWidth    -- ^ Set the width of the pen
+    Variable              -- ^ To a variable width
+  | SetColor    -- ^ Set the color of the pen 
+    Variable              -- ^ To a variable (floored in the code and taken modulus to fit in range)
+  | PenUp       -- ^ Stop drawing
+  | PenDown     -- ^ Start drawing (initial state)
+  | ClearScreen -- ^ Clear the screen
+
+
   -- | Variable Usage
-  | MakeVariable String Variable
+
+  | MakeVariable -- ^ Create a variable
+    String                -- ^ With a string name
+    Variable              -- ^ And a variable value
+
+
   -- | Control Flow
-  | Repeat Variable [HogoCode]
-  | For String Variable Variable Variable [HogoCode]
-  | Function String [Variable]
+
+  | Repeat      -- ^ Repeat a block of code
+    Variable              -- ^ A variable (floored) number of times
+    [HogoCode]            -- ^ A list of code to repeat
+  | For         -- ^ For loop
+    String                -- ^ A string name
+    Variable              -- ^ Starting value
+    Variable              -- ^ Ending value 
+    Variable              -- ^ Increment value
+    [HogoCode]            -- ^ A list of code to repeat
+  | Function    -- ^ Function definition
+    String                -- ^ A string name
+    [Variable]            -- ^ A list of input values
+
   deriving (Show,Eq)
 
 -- | Parse error handling
 newtype HogoParseError = HogoParseError String deriving (Show, Eq, Ord)
 
+-- | Show instance for HogoParseError
 instance ShowErrorComponent HogoParseError where
   showErrorComponent :: HogoParseError -> String
   showErrorComponent (HogoParseError msg) = msg
 
+
+-- | Parser type with HogoParseError error, parsing a list of TOKENS (and not characters)
 type ParserT = Parsec HogoParseError [TOKENS]
 
 -- | MTL used to combine a parser state with a HogoProgram state monad.
@@ -208,25 +255,37 @@ newtype HogoParser a = HogoParser {
 
 
 
--- Format a HogoParseError
-
-
-formatError :: ParseErrorBundle [TOKENS] HogoParseError -> String
+-- | Format error messages for the parser
+formatError 
+  :: ParseErrorBundle [TOKENS] HogoParseError -- ^ Error bundle
+  -> String
 formatError bundle = unlines $
     "\n" : map ("  " ++) (formatErrors $ Data.List.NonEmpty.toList $ bundleErrors bundle)
 
-formatErrors :: [ParseError [TOKENS] HogoParseError] -> [String]
+-- | Format multiple error messages for the parser
+formatErrors 
+  :: [ParseError [TOKENS] HogoParseError]     -- ^ List of error bundles
+  -> [String]
 formatErrors = map formatErrorEntry
 
-
-errMsgToList :: Set (ErrorItem (Token [TOKENS])) -> [ErrorItem (Token [TOKENS])]
+-- | Convert a set of error items to a list
+errMsgToList 
+  :: Set (ErrorItem (Token [TOKENS]))  -- ^ Set of error items
+  -> [ErrorItem (Token [TOKENS])]
 errMsgToList = Data.Foldable.toList
 
-errMsgToListFancy :: Set (ErrorFancy HogoParseError) -> [ErrorFancy HogoParseError]
+-- | Convert a set of error fancy items to a list
+errMsgToListFancy 
+  :: Set (ErrorFancy HogoParseError)  -- ^ Set of error fancy items
+  -> [ErrorFancy HogoParseError]
 errMsgToListFancy = Data.Foldable.toList
 
 
-formatErrorEntry :: ParseError [TOKENS] HogoParseError -> String
+-- | Format a single error message for the parser in a nice format
+formatErrorEntry 
+  :: ParseError [TOKENS] HogoParseError -- ^ Error bundle
+  -> String
+
 formatErrorEntry (TrivialError pos (Just (Tokens (x :| _))) errMsg) =
     "Error " ++ message
   where
@@ -242,7 +301,4 @@ formatErrorEntry (FancyError pos errMsg) =
     res = [hpe | (ErrorFail hpe) <- errMsgs]
     message = "at item " ++ show (pos-1) ++ "\n  Message: " ++ show res
 
-formatErrorEntry err =
-  "Error: " ++ message
-  where
-    message = show err
+formatErrorEntry err = "Error: " ++ show err
