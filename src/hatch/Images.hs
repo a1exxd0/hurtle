@@ -35,11 +35,6 @@ blank = Leaf Gloss.blank
 rect :: Int -> Int -> Image
 rect x y = Leaf $ Gloss.rectangleSolid (fromIntegral x) (fromIntegral y)
 
-{-
-line :: Float -> Float -> Float -> Float -> Image
-line x1 y1 x2 y2 = Leaf $ Gloss.line [(x1, y1), (x2, y2)]
--}
-
 text :: String -> Image
 text t = Leaf $ Gloss.pictures [
             Gloss.translate x y 

@@ -18,7 +18,7 @@ to bam :s :l :r :n :g :rp [
 
     repeat :rp [                    ; repeat this rp times
         make "col sum :col 1        ; add 1 to the value of col
-        setcolor :col               ; set the color [truncates the value for cheeky type safety]
+        setcolor :col               ; set the color [truncates the value in interpretation for type safety]
         setwidth multiply :col 1.01 ; set the width and expand slowly
         right :r                    ; rotate right by parameter
         repeat :s [                 ; repeat s times by parameter
@@ -44,7 +44,11 @@ make "myReturn 5
 
 func :myReturn 8                ;sums 5 and 8 and stores in myReturn
 
-bam 8 100 3 5 0 420              ; quality func call
+; for [i 1 10 0.5] [forward sum 10 :i] ; will go forward the sum of the variable
+                                       ; i and 10 (commented out but you can uncomment if you want. Not interesting)
+
+
+bam :myReturn 100 3 5 0 420              ; quality func call
                                  ; change 8 to something big if you want circles
                                  ; but scale down 100 to like 10 or less
 

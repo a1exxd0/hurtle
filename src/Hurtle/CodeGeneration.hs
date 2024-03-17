@@ -21,7 +21,7 @@ import Text.Megaparsec
       satisfy,
       many,
       MonadParsec(try, eof, lookAhead) )
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict 
     ( MonadState(get, put),
       replicateM,
       unless,

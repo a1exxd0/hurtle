@@ -1,6 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverlappingInstances #-}
 
 module Hurtle.Types where
 
@@ -71,7 +70,7 @@ data TOKENS
 -- | Required because all 'names' and 'values' are equal in syntax
 --
 --   Specific equality check to ignore String/Float differences in variabes,
---   since utomatic deriving won't let us do this.
+--   since automatic deriving won't let us do this.
 instance Eq TOKENS where
   (==) :: TOKENS -> TOKENS -> Bool
   FOR == FOR                    = True
@@ -98,8 +97,8 @@ instance Eq TOKENS where
   PENUP == PENUP                = True
   PENDOWN == PENDOWN            = True
   CLS == CLS                    = True
-  NAME _ == NAME _              = True
-  VALUE _ == VALUE _            = True   
+  NAME _ == NAME _              = True  -- ^ Two NAME tokens are equal regardless of string
+  VALUE _ == VALUE _            = True  -- ^ Two VALUE tokens are equal regardless of float
   _ == _                        = False -- ^ In any case where tokens arent the same
 
 -- | Parser type with void error, parsing a list of characters (string)

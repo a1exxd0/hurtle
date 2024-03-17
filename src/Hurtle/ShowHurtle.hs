@@ -139,7 +139,10 @@ initialState program = HogoRun {
 --   You can consider a variable storing a reference to another
 --   variable as just that, if the variable it is referencing
 --   changes, then the value it gets for itself also changes.
-getValue :: HogoRun -> Variable -> Float
+getValue 
+    :: HogoRun      -- ^ Current run state to check
+    -> Variable     -- ^ Variable to retrieve value for
+    -> Float
 getValue run var = 
 
     -- Get the variable map of the current state
@@ -162,12 +165,27 @@ getValue run var =
         (Multiply x y)   -> getValue run x * getValue run y
         (Divide x y)     -> getValue run x / getValue run y
 
-getProcedure :: HogoRun -> String -> ([String], HogoProgram)
+
+-- | Get the procedure from the procedure table. By this point,
+--   we already are certain the procedure exists when called, and
+--   is called with the right number of parameters for certain.
+--   Returns the array of parameter names and the HogoProgram
+--   associated with the procedure.
+getProcedure 
+    :: HogoRun          -- ^ Current run state to check
+    -> String           -- ^ Procedure name
+    -> ([String],       -- ^ List of parameter names
+        HogoProgram)    -- ^ HogoProgram contained in procedure
 getProcedure run name = 
     case Map.lookup name (procTable (program run)) of
         Just details -> details
         Nothing -> error "Procedure not found"
 
+
+--STATE UPDATING FUNCTIONS---------------------------------------------------------
+
+-- | Calculates the new position of the Hurtle based on
+--   previous position, angle of movement, and distance travelled
 updatePosByAngle 
     :: (Float, Float)   -- ^ Original position
     -> Float            -- ^ Angle of rotation from up
@@ -176,6 +194,25 @@ updatePosByAngle
 updatePosByAngle (x, y) theta len 
     = (x + (len * sin (theta * (pi / 180))), y + (len * cos (theta * (pi / 180))))
 
+-- | Given a current run state, if we need to move, update position
+--   as specified by distance declared and direction travelling. Will
+--   update code state after operation is performed.
+moveByMultiplier 
+    :: HogoRun      -- ^ Current run state
+    -> Variable     -- ^ Variable to update by
+    -> [HogoCode]   -- ^ Tail after function is called on program code
+    -> Float        -- ^ 1 or -1 depending on forward or backward
+    -> HogoRun
+moveByMultiplier run x xs mul = 
+    let val = getValue run x
+        newProgram = (program run) { code = xs } -- Update the program's code
+        newPos = updatePosByAngle (turtlePos run) (turtleDir run) (val * mul)
+
+        in run { program = newProgram, turtlePos = newPos}
+
+-- | Given a current run state, performs the same function as moveByMultiplier
+--   , but also updates the @currentImage@ as required, rather than just changing
+--   the position.
 drawByMultiplier 
     :: HogoRun      -- ^ Current run state
     -> Variable     -- ^ Variable to update by
@@ -191,19 +228,9 @@ drawByMultiplier run x xs mul =
 
         in run { program = newProgram, currentImage = finImg, turtlePos = newPos}
 
-moveByMultiplier 
-    :: HogoRun      -- ^ Current run state
-    -> Variable     -- ^ Variable to update by
-    -> [HogoCode]   -- ^ Tail after function is called on program code
-    -> Float        -- ^ 1 or -1 depending on forward or backward
-    -> HogoRun
-moveByMultiplier run x xs mul = 
-    let val = getValue run x
-        newProgram = (program run) { code = xs } -- Update the program's code
-        newPos = updatePosByAngle (turtlePos run) (turtleDir run) (val * mul)
-
-        in run { program = newProgram, turtlePos = newPos}
-
+-- | Rotates the Hurtle from its current state to a relative new state
+--   by a variable amount and in a certain direction as specified by
+--   the parameters
 rotateByAngle 
     :: HogoRun      -- ^ Current run state
     -> Variable     -- ^ Variable to update by
@@ -217,8 +244,7 @@ rotateByAngle run x xs mul =
 
         in run { program = newProgram, turtleDir = newDir}
 
-
-
+-- | Set the colour of the pen into the run state
 setHogoColor 
     :: HogoRun -- ^ Current run state
     -> Variable -- ^ Variable to change to
@@ -231,6 +257,7 @@ setHogoColor run x xs =
 
         in run { program = newProgram, penColor = newColor}
 
+-- | Set the width of the pen into the run state
 setHogoWidth 
     :: HogoRun -- ^ Current run state
     -> Variable -- ^ Variable to change to
@@ -243,6 +270,9 @@ setHogoWidth run x xs =
 
         in run { program = newProgram, penWidth = newWidth}
 
+-- | Performs a movement command and draws a line if
+--   the current penState is True, else it just moves
+--   the Hurtle.
 checkPenMovement 
     :: HogoRun -- ^ Current run state
     -> Variable -- ^ Variable to change to
@@ -253,8 +283,13 @@ checkPenMovement run x xs mul
     | penState run          = drawByMultiplier run x xs mul
     | otherwise             = moveByMultiplier run x xs mul
 
+-- | Updates a variable value in the state
 updateVariable 
-    :: HogoRun -> String -> Variable -> [HogoCode] -> HogoRun
+    :: HogoRun          -- ^ Current run state
+    -> String           -- ^ Name of variable to update
+    -> Variable         -- ^ Value to set the variable to
+    -> [HogoCode]       -- ^ Tail of the code after function called
+    -> HogoRun
 updateVariable run name var xs =
     let val = getValue run var
         in run { 
@@ -265,17 +300,9 @@ updateVariable run name var xs =
             }
         }
 
-removeVariable 
-    :: HogoRun -> String -> [HogoCode] -> HogoRun
-removeVariable run name xs =
-    run { 
-        program = (program run) 
-        {
-            varTable = Map.delete name (varTable (program run)),
-            code = xs
-        }
-    }
-
+-- | Inserts a repeated portion into the code a number of times.
+--   Guaranteed finite insert operation, works by replacing a REPEAT
+--   HogoCode with its code parameter a number of times.
 interpretRepeat 
     :: HogoRun -- ^ Current run state
     -> Variable -- ^ Number of repeats
@@ -284,8 +311,14 @@ interpretRepeat
     -> HogoRun
 interpretRepeat run count rep xs =
     let val = getValue run count in
+        -- Truncate used for type safety
         run { program = (program run) { code = concat (replicate (truncate val) rep) ++ xs } }
 
+-- | Works by calculating how many repetitions it thinks will occur and
+--   adding that many repeats of a portion of code. Flawed in that if
+--   you make an infinite loop, code will not pass this stage. Also,
+--   updates to the variable inside of the for loop will not affect the 
+--   number of repeats occuring.
 interpretFor 
     :: HogoRun -- ^ Current run state
     -> String -- ^ Variable name
@@ -296,15 +329,26 @@ interpretFor
     -> [HogoCode] -- ^ Tail code
     -> HogoRun
 interpretFor run var strt end step rep xs = 
+    
+    -- Get clause variables
     let pinit = getValue run strt
         pend = getValue run end
         pstep = getValue run step
+
+        -- | Insert code to begin a for declaration (eg. i = 1)
         res = [MakeVariable var strt]
+
+        -- | At the end of each repeated section, increment the variable (eg. i++)
         newRep = rep ++ [MakeVariable var (Sum (Variable $ Key var) step)]
+
+        -- | Calculate number of repetitions using a list comprehension
         count = length [pinit, pstep+pinit..pend]
     in
         run { program = (program run) { code = res ++ concat (replicate count newRep) ++ xs } }
 
+-- | Call a function by getting the relevant program, loading in code,
+--   and adding all parameter names in function to variable table attached
+--   to the arguments given in call.
 callFunction 
     :: HogoRun -- ^ Current run state
     -> String -- ^ Function name
@@ -312,9 +356,14 @@ callFunction
     -> [HogoCode] -- ^ Tail code
     -> HogoRun
 callFunction run name args xs =
+
+    -- Get details for argument names used, and subprogram
     let (argNames, prog) = getProcedure run name
+        -- Zip values given with argument names
         newVars = zip argNames args
+        -- Attach new values to old table
         newTable = quickUpdate run newVars
+        -- Update code with subprogram
         newProgram = (program run) { code = code prog ++ xs, varTable = newTable }
         in run { program = newProgram }
     where
@@ -323,33 +372,56 @@ callFunction run name args xs =
         quickUpdate prog ((y, var):ys) = Map.insert y var (quickUpdate prog ys)
                 
 
-
-interpret :: HogoRun -> HogoRun
+-- | Convert a HogoCode into a visual element (or more code
+--   in the case it is a loop). Consumes an element at
+--   the head of the HogoCode and performs a state update.
+interpret 
+    :: HogoRun      -- ^ Current state
+    -> HogoRun      -- ^ New state
 interpret run = case code (program run) of
     [] -> run -- No commands left, return the current state
-    -- | Movement Commands
-    ((Forward x):xs) -> checkPenMovement run x xs 1
-    ((Back x):xs) -> checkPenMovement run x xs (-1)
-    ((GoRight x):xs) -> rotateByAngle run x xs 1
-    ((GoLeft x):xs) -> rotateByAngle run x xs (-1)
-    (Home:xs) -> run {turtlePos = (0,0), turtleDir = 0, program = (program run) { code = xs } }
-    -- | Pen Commands
-    ((SetColor x):xs) -> setHogoColor run x xs
-    ((SetWidth x):xs) -> setHogoWidth run x xs
-    (PenUp:xs) -> run {penState = False, program = (program run) { code = xs } }
-    (PenDown:xs) -> run {penState = True, program = (program run) { code = xs } }
-    (ClearScreen:xs) -> run {program = (program run) { code = xs }, currentImage = [Leaf Gloss.blank]}
-    -- | Variable Usage
-    ((MakeVariable name val):xs) -> updateVariable run name val xs
-    -- | Control Flow
-    ((Repeat count x):xs) -> interpretRepeat run count x xs
-    ((For var start end step x):xs) -> interpretFor run var start end step x xs
-    ((Function name args):xs) -> callFunction run name args xs
 
-showRun :: HogoRun -> Image
+    -- | Movement Commands
+    ((Forward x):xs)    -> checkPenMovement run x xs 1
+    ((Back x):xs)       -> checkPenMovement run x xs (-1)
+    ((GoRight x):xs)    -> rotateByAngle run x xs 1
+    ((GoLeft x):xs)     -> rotateByAngle run x xs (-1)
+    (Home:xs)           -> run {turtlePos = (0,0), 
+                                turtleDir = 0, 
+                                program = (program run) { code = xs }}
+
+    -- | Pen Commands
+    ((SetColor x):xs)   -> setHogoColor run x xs
+    ((SetWidth x):xs)   -> setHogoWidth run x xs
+    (PenUp:xs)          -> run {penState = False, 
+                                program = (program run) { code = xs } }
+
+    (PenDown:xs)        -> run {penState = True, 
+                                program = (program run) { code = xs } }
+
+    (ClearScreen:xs)    -> run {program = (program run) { code = xs }, 
+                                currentImage = [Leaf Gloss.blank]}
+    -- | Variable Usage
+    ((MakeVariable name val):xs)    -> updateVariable run name val xs
+    -- | Control Flow
+    ((Repeat count x):xs)           -> interpretRepeat run count x xs
+    ((For var start end step x):xs) -> interpretFor run var start end step x xs
+    ((Function name args):xs)       -> callFunction run name args xs
+
+-- | Convert a currentImage (list of images) to a whole image,
+--   with a superimposed head picture (Haskell logo)
+showRun 
+    :: HogoRun          -- ^ Current state
+    -> Image
 showRun run = superimposeAll $
      currentImage run ++ [align (turtlePos run) (Leaf $ Gloss.rotate (turtleDir run) 
         (Gloss.scale 0.05 0.05 $ png "assets/haskell.png"))]
 
-animation :: HogoProgram -> Int -> Image
+-- | Animation call to interpret (similar to CW1). Lazy evaluation
+--   and caching of 'iterate' means that we don't need to worry about recalculating
+--   state 500 (for example) 498 more times than we need to.
+animation 
+    :: HogoProgram      -- ^ Program to interpret
+    -> Int              -- ^ Frame to observe
+    -> Image
 animation prog s = showRun $ interpret $ iterate interpret (initialState prog) !! s
