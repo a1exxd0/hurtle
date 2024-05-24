@@ -51,5 +51,5 @@ bam 5 100 3 5 0 420
 # Fail cases
 The program isn't perfect (and neither is Logo Turtle, this mimics that in a sense)
  - If you write a program that won't terminate, the code is guaranteed to never run.
- - The compiler relies on knowing exactly how many calls are made as loops are replaced with the code equivalent; i.e. writing repeat 2 <code> will replace that HogoCode with <code> <code>. A similar process is applied to for loops
+ - The compiler relies on knowing exactly how many calls are made as loops are replaced with the code equivalent; i.e. writing repeat 2 \<code> will replace that HogoCode with \<code> \<code>. A similar process is applied to for loops
  - The conditional for loop is not affected by change of variable inside of the loop, i.e. if you set step to 1 and add 1 to the counter variable inside of the loop, it won't loop fewer times.
